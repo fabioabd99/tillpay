@@ -160,12 +160,7 @@ export async function createRecurringRule(
 
   // only one salary per user, the new one replaces the old
   return db.transaction(async (tx) => {
-    if (input.isSalary) {
-      await tx
-        .update(recurringRules)
-        .set({ isSalary: false })
-        .where(and(eq(recurringRules.userId, userId), eq(recurringRules.isSalary, true)));
-    }
+    if (input.isSalary) await clearSalary(tx, userId);
 
     const [row] = await tx
       .insert(recurringRules)
@@ -176,33 +171,32 @@ export async function createRecurringRule(
   });
 }
 
-export const SALARY_MUST_BE_INCOME = "salary_must_be_income" as const;
+function clearSalary(tx: Pick<typeof db, "update">, userId: string) {
+  return tx
+    .update(recurringRules)
+    .set({ isSalary: false })
+    .where(and(eq(recurringRules.userId, userId), eq(recurringRules.isSalary, true)));
+}
 
-// Marks a rule as the salary (unmarking any other) or unmarks it.
-export async function setRuleSalary(userId: string, id: string, isSalary: boolean) {
+// Marks an income rule as the salary, unmarking any other. The CHECK
+// constraint backs the type filter; a non-income rule comes back as null.
+export async function setRuleSalary(userId: string, id: string) {
   return db.transaction(async (tx) => {
-    const [rule] = await tx
-      .select({ type: recurringRules.type })
-      .from(recurringRules)
-      .where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)));
-
-    if (!rule) return null;
-    if (isSalary && rule.type !== "income") return SALARY_MUST_BE_INCOME;
-
-    if (isSalary) {
-      await tx
-        .update(recurringRules)
-        .set({ isSalary: false })
-        .where(and(eq(recurringRules.userId, userId), eq(recurringRules.isSalary, true)));
-    }
+    await clearSalary(tx, userId);
 
     const [row] = await tx
       .update(recurringRules)
-      .set({ isSalary })
-      .where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)))
+      .set({ isSalary: true })
+      .where(
+        and(
+          eq(recurringRules.id, id),
+          eq(recurringRules.userId, userId),
+          eq(recurringRules.type, "income"),
+        ),
+      )
       .returning();
 
-    return row;
+    return row ?? null;
   });
 }
 

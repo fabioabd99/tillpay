@@ -56,20 +56,11 @@ export function RecurringManager({
   const router = useRouter();
   const [adding, setAdding] = useState(false);
 
-  async function togglePaused(rule: RecurringRuleRow) {
+  async function update(rule: RecurringRuleRow, body: { active: boolean } | { isSalary: true }) {
     await fetch(`/api/v1/recurring-rules/${rule.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !rule.active }),
-    });
-    router.refresh();
-  }
-
-  async function makeSalary(rule: RecurringRuleRow) {
-    await fetch(`/api/v1/recurring-rules/${rule.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isSalary: true }),
+      body: JSON.stringify(body),
     });
     router.refresh();
   }
@@ -149,7 +140,7 @@ export function RecurringManager({
                   <Button
                     variant="outline"
                     className="h-11"
-                    onClick={() => makeSalary(rule)}
+                    onClick={() => update(rule, { isSalary: true })}
                   >
                     Set as salary
                   </Button>
@@ -163,7 +154,7 @@ export function RecurringManager({
                       ? `Pause ${rule.description}`
                       : `Resume ${rule.description}`
                   }
-                  onClick={() => togglePaused(rule)}
+                  onClick={() => update(rule, { active: !rule.active })}
                 >
                   {rule.active ? <Pause /> : <Play />}
                 </Button>

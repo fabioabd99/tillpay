@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { parseAmountToCents } from "@/lib/money";
-import { firstPayday } from "@/lib/payday";
+import { nextRunAfter } from "@/server/recurring";
 
 // Shown on Home while no salary is set: asks for the pay day and creates the
 // salary as a monthly repeating income.
@@ -61,7 +61,9 @@ export function SalaryPrompt({
     }
 
     setSaving(true);
-    const startsOn = firstPayday(dayNumber, today);
+    const rule = { frequency: "monthly", interval: 1, dayOfMonth: dayNumber, weekday: null } as const;
+    // a monthly rule never ends, so there is always a next run
+    const startsOn = nextRunAfter({ ...rule, startsOn: today, endsOn: null, nextRunOn: today }, today)!;
     const response = await fetch("/api/v1/recurring-rules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,10 +73,7 @@ export function SalaryPrompt({
         description: "Salary",
         type: "income",
         amountCents: cents,
-        frequency: "monthly",
-        interval: 1,
-        dayOfMonth: dayNumber,
-        weekday: null,
+        ...rule,
         startsOn,
         endsOn: null,
         isSalary: true,
