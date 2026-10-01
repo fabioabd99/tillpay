@@ -29,11 +29,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Surface } from "@/components/ui/surface";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { parseDate } from "@/lib/dates";
+import { isoDate, parseDate } from "@/lib/dates";
 import { parseAmountToCents } from "@/lib/money";
 import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
-import { FREQUENCIES, FREQUENCY_LABELS } from "@/lib/validators/recurring";
+import {
+  FREQUENCIES,
+  FREQUENCY_LABELS,
+  recurringRuleInputSchema,
+} from "@/lib/validators/recurring";
 import type { RecurringRuleRow } from "@/server/queries/recurring";
 
 type Option = { id: string; name: string; kind?: string };
@@ -200,9 +204,7 @@ function RuleDialog({
     useState<(typeof FREQUENCIES)[number]>("monthly");
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [categoryId, setCategoryId] = useState("none");
-  const [startsOn, setStartsOn] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
+  const [startsOn, setStartsOn] = useState(isoDate(new Date()));
   const [isSalary, setIsSalary] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -214,37 +216,32 @@ function RuleDialog({
   );
 
   async function save() {
-    const magnitude = parseAmountToCents(amount);
+    // the API validates with the same schema
+    const magnitude = parseAmountToCents(amount) ?? 0;
+    const parsed = recurringRuleInputSchema.safeParse({
+      accountId,
+      categoryId: categoryId === "none" ? null : categoryId,
+      description,
+      type: direction === "in" ? "income" : "expense",
+      amountCents: direction === "in" ? magnitude : -magnitude,
+      frequency,
+      // taken from the start date
+      dayOfMonth:
+        frequency === "monthly" || frequency === "yearly"
+          ? Number(startsOn.slice(8, 10)) || null
+          : null,
+      weekday: frequency === "weekly" ? parseDate(startsOn).getDay() : null,
+      startsOn,
+      isSalary: direction === "in" && isSalary,
+    });
 
-    if (magnitude === null || magnitude <= 0) {
-      setError("Enter an amount, like 12.50");
-      return;
-    }
-
-    if (!description.trim()) {
-      setError("Give it a name, like Rent");
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
       return;
     }
 
     setSaving(true);
-    const response = await sendJson("/api/v1/recurring-rules", "POST", {
-      accountId,
-      categoryId: categoryId === "none" ? null : categoryId,
-      description: description.trim(),
-      type: direction === "in" ? "income" : "expense",
-      amountCents: direction === "in" ? magnitude : -magnitude,
-      frequency,
-      interval: 1,
-      // taken from the start date
-      dayOfMonth:
-        frequency === "monthly" || frequency === "yearly"
-          ? Number(startsOn.slice(8, 10))
-          : null,
-      weekday: frequency === "weekly" ? parseDate(startsOn).getDay() : null,
-      startsOn,
-      endsOn: null,
-      isSalary: direction === "in" && isSalary,
-    });
+    const response = await sendJson("/api/v1/recurring-rules", "POST", parsed.data);
     setSaving(false);
 
     if (!response.ok) {

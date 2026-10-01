@@ -1,7 +1,7 @@
-import { sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-
+import { transactions } from "@/db/schema";
 
 export type MonthlyPoint = {
   month: string;
@@ -73,8 +73,10 @@ export async function getSpendingByCategory(
     name: string | null;
     color: string | null;
     cents: number;
+    share: number;
   }>(sql`
-    SELECT c.id, c.name, c.color, (-sum(t.amount_cents))::int AS cents
+    SELECT c.id, c.name, c.color, (-sum(t.amount_cents))::int AS cents,
+           sum(t.amount_cents)::float8 / sum(sum(t.amount_cents)) OVER () AS share
     FROM transactions t
     LEFT JOIN categories c ON c.id = t.category_id
     WHERE t.user_id = ${userId}
@@ -85,13 +87,31 @@ export async function getSpendingByCategory(
     ORDER BY (-sum(t.amount_cents)) DESC
   `);
 
-  const total = rows.reduce((sum, row) => sum + row.cents, 0) || 1;
-
   return rows.map((row) => ({
     id: row.id,
     name: row.name ?? "Uncategorised",
     color: row.color,
     cents: row.cents,
-    share: row.cents / total,
+    share: row.share,
   }));
+}
+
+// Income, spending and months with any of either, between two dates.
+export async function getPeriodTotals(userId: string, from: string, to: string) {
+  const [row] = await db
+    .select({
+      incomeCents: sql<number>`coalesce(sum(${transactions.amountCents}) filter (where ${transactions.type} = 'income'), 0)::int`,
+      expenseCents: sql<number>`coalesce(-sum(${transactions.amountCents}) filter (where ${transactions.type} = 'expense'), 0)::int`,
+      activeMonths: sql<number>`count(distinct date_trunc('month', ${transactions.occurredOn})) filter (where ${transactions.type} <> 'transfer')::int`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.occurredOn, from),
+        lte(transactions.occurredOn, to),
+      ),
+    );
+
+  return row;
 }

@@ -76,6 +76,8 @@ export async function listTransactions(
       categoryId: categories.id,
       categoryName: categories.name,
       categoryColor: categories.color,
+      // whole day under these filters; windows run before LIMIT, so pages don't cut it
+      dayNetCents: sql<number>`(sum(${transactions.amountCents}) over (partition by ${transactions.occurredOn}))::int`,
     })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))

@@ -69,79 +69,75 @@ export function TransactionList({
   return (
     <>
       <div className="flex flex-col gap-8">
-        {days.map((day) => {
-          const net = day.rows.reduce((sum, row) => sum + row.amountCents, 0);
+        {days.map((day) => (
+          <section key={day.date} className="flex flex-col gap-1">
+            <header className="flex items-baseline justify-between gap-4 px-2 pb-2">
+              <h2 className="text-base font-medium">
+                {dayHeading(day.date, today, yesterday)}
+              </h2>
+              <Amount
+                cents={day.rows[0].dayNetCents}
+                colored={false}
+                className="text-sm text-muted-foreground"
+              />
+            </header>
 
-          return (
-            <section key={day.date} className="flex flex-col gap-1">
-              <header className="flex items-baseline justify-between gap-4 px-2 pb-2">
-                <h2 className="text-base font-medium">
-                  {dayHeading(day.date, today, yesterday)}
-                </h2>
-                <Amount
-                  cents={net}
-                  colored={false}
-                  className="text-sm text-muted-foreground"
-                />
-              </header>
-
-              <Surface
-                as="ul"
-                data-stagger
-                className="overflow-hidden"
+            <Surface
+              as="ul"
+              data-stagger
+              className="overflow-hidden"
+            >
+              {day.rows.map((row) => (
+                <li
+                key={row.id}
+                className="border-b border-border/60 last:border-b-0"
               >
-                {day.rows.map((row) => (
-                  <li
-                  key={row.id}
-                  className="border-b border-border/60 last:border-b-0"
-                >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditing({
-                          id: row.id,
-                          type: row.type,
-                          amountCents: row.amountCents,
-                          occurredOn: row.occurredOn,
-                          description: row.description,
-                          accountId: row.accountId,
-                          categoryId: row.categoryId,
-                        })
-                      }
-                      className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                    >
-                      <CategoryIcon
-                        category={row.categoryName}
-                        color={row.categoryColor}
-                        isTransfer={row.type === "transfer"}
-                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                      />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditing({
+                        id: row.id,
+                        type: row.type,
+                        amountCents: row.amountCents,
+                        occurredOn: row.occurredOn,
+                        description: row.description,
+                        accountId: row.accountId,
+                        categoryId: row.categoryId,
+                      })
+                    }
+                    className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <CategoryIcon
+                      category={row.categoryName}
+                      color={row.categoryColor}
+                      isTransfer={row.type === "transfer"}
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                    />
 
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-base font-medium">
-                          {row.description ?? row.categoryName ?? "Transaction"}
-                        </span>
-                        <span className="block truncate text-sm text-muted-foreground">
-                          {row.type === "transfer"
-                            ? "Transfer"
-                            : (row.categoryName ?? "No category")}
-                          {showAccount ? ` · ${row.accountName}` : ""}
-                        </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-medium">
+                        {row.description ?? row.categoryName ?? "Transaction"}
                       </span>
+                      <span className="block truncate text-sm text-muted-foreground">
+                        {row.type === "transfer"
+                          ? "Transfer"
+                          : (row.categoryName ?? "No category")}
+                        {showAccount ? ` · ${row.accountName}` : ""}
+                      </span>
+                    </span>
 
-                      <Amount
-                        cents={row.amountCents}
-                        currency={row.currency}
-                        colored={row.type !== "transfer"}
-                        className="shrink-0 text-base font-medium"
-                      />
-                    </button>
-                  </li>
-                ))}
-              </Surface>
-            </section>
-          );
-        })}
+                    <Amount
+                      cents={row.amountCents}
+                      currency={row.currency}
+                      colored={row.type !== "transfer"}
+                      className="shrink-0 text-base font-medium"
+                    />
+                  </button>
+                </li>
+              ))}
+            </Surface>
+          </section>
+        ))}
       </div>
 
       {editing ? (

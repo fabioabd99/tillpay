@@ -13,12 +13,21 @@ export const recurringRuleInputSchema = z
   .object({
     accountId: z.uuid("Choose an account"),
     categoryId: z.uuid().nullable().default(null),
-    description: z.string().trim().min(1, "Give it a name").max(200),
+    description: z.string().trim().min(1, "Give it a name, like Rent").max(200),
     type: z.enum(["income", "expense"]),
-    amountCents: z.number().int(),
+    amountCents: z
+      .number()
+      .int()
+      .refine((value) => value !== 0, { message: "Enter an amount, like 12.50" }),
     frequency: z.enum(FREQUENCIES),
     interval: z.number().int().min(1).max(52).default(1),
-    dayOfMonth: z.number().int().min(1).max(31).nullable().default(null),
+    dayOfMonth: z
+      .number()
+      .int()
+      .min(1, "Enter a day from 1 to 31")
+      .max(31, "Enter a day from 1 to 31")
+      .nullable()
+      .default(null),
     weekday: z.number().int().min(0).max(6).nullable().default(null),
     startsOn: z.iso.date(),
     endsOn: z.iso.date().nullable().default(null),

@@ -11,6 +11,7 @@ import { formatCents } from "@/lib/money";
 import { requireUser } from "@/server/auth-context";
 import {
   getMonthlyTrend,
+  getPeriodTotals,
   getSpendingByCategory,
 } from "@/server/queries/reports";
 
@@ -37,23 +38,15 @@ export default async function ReportsPage({
   const periodStart = startOfMonth(subMonths(new Date(), months - 1));
   const periodEnd = endOfMonth(new Date());
 
-  const [trend, byCategory] = await Promise.all([
+  const from = isoDate(periodStart);
+  const to = isoDate(periodEnd);
+  const [trend, byCategory, totals] = await Promise.all([
     getMonthlyTrend(user.id, months),
-    getSpendingByCategory(user.id, isoDate(periodStart), isoDate(periodEnd)),
+    getSpendingByCategory(user.id, from, to),
+    getPeriodTotals(user.id, from, to),
   ]);
 
-  const totals = trend.reduce(
-    (sum, point) => ({
-      income: sum.income + point.incomeCents,
-      expense: sum.expense + point.expenseCents,
-    }),
-    { income: 0, expense: 0 },
-  );
-
-  const net = totals.income - totals.expense;
-  // average over months with activity only
-  const activeMonths =
-    trend.filter((point) => point.incomeCents || point.expenseCents).length || 1;
+  const net = totals.incomeCents - totals.expenseCents;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 lg:py-10">
@@ -80,12 +73,13 @@ export default async function ReportsPage({
       />
 
       <dl className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Money in" value={<Amount cents={totals.income} />} />
-        <Stat label="Money out" value={<Amount cents={-totals.expense} />} />
+        <Stat label="Money in" value={<Amount cents={totals.incomeCents} />} />
+        <Stat label="Money out" value={<Amount cents={-totals.expenseCents} />} />
         <Stat
           label={net >= 0 ? "Kept" : "Short by"}
           value={<Amount cents={net} />}
-          detail={`${formatCents(Math.round(totals.expense / activeMonths), "EUR")} a month on average`}
+          // average over months with activity only
+          detail={`${formatCents(Math.round(totals.expenseCents / (totals.activeMonths || 1)), "EUR")} a month on average`}
         />
       </dl>
 

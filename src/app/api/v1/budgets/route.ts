@@ -1,5 +1,7 @@
+import { startOfMonth } from "date-fns";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isoDate } from "@/lib/dates";
 import { budgetInputSchema } from "@/lib/validators/budget";
 import { requireApiUser,
   requireApiUserForWrite, validationError } from "@/server/api";
@@ -11,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const month =
     request.nextUrl.searchParams.get("month") ??
-    new Date().toISOString().slice(0, 8) + "01";
+    isoDate(startOfMonth(new Date()));
 
   return NextResponse.json({ data: await getBudgetProgress(user.id, month) });
 }

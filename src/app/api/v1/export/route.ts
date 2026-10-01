@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 
 import { csvRow } from "@/lib/csv";
+import { isoDate } from "@/lib/dates";
 import { parseTransactionFilters } from "@/lib/validators/transaction";
 import { requireApiUser } from "@/server/api";
 import { listTransactions } from "@/server/queries/transactions";
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = isoDate(new Date());
 
   return new Response(stream, {
     headers: {

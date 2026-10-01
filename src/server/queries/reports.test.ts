@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { getMonthlyTrend, getSpendingByCategory } from "./reports";
+import { getCategoryPace, getUpcomingBills } from "./overview";
+import { getMonthlyTrend, getPeriodTotals, getSpendingByCategory } from "./reports";
 import { listTransactions } from "./transactions";
 import { parseTransactionFilters } from "@/lib/validators/transaction";
 
@@ -102,5 +103,52 @@ describe.runIf(process.env.DATABASE_URL)("report aggregates", () => {
     }
 
     expect(seen.size).toBe(first.total);
+  });
+
+  test("period totals match the monthly trend", async () => {
+    if (!userId) return;
+
+    const trend = await getMonthlyTrend(userId, 12);
+    const totals = await getPeriodTotals(userId, trend[0].month, "2100-01-01");
+
+    expect(totals.incomeCents).toBe(trend.reduce((sum, p) => sum + p.incomeCents, 0));
+    expect(totals.expenseCents).toBe(trend.reduce((sum, p) => sum + p.expenseCents, 0));
+    expect(totals.activeMonths).toBe(
+      trend.filter((p) => p.incomeCents || p.expenseCents).length,
+    );
+  });
+
+  test("a day's net covers the whole day, even when it spans pages", async () => {
+    if (!userId) return;
+
+    const page = await listTransactions(userId, parseTransactionFilters({ pageSize: "25" }));
+    const last = page.rows.at(-1);
+    if (!last) return;
+
+    const wholeDay = await listTransactions(
+      userId,
+      parseTransactionFilters({ from: last.occurredOn, to: last.occurredOn, pageSize: "100" }),
+    );
+
+    expect(last.dayNetCents).toBe(wholeDay.rows.reduce((sum, row) => sum + row.amountCents, 0));
+  });
+
+  test("every upcoming bill carries the committed total", async () => {
+    if (!userId) return;
+
+    const bills = await getUpcomingBills(userId, "2100-01-01");
+    const total = -bills.reduce((sum, bill) => sum + bill.amountCents, 0);
+
+    for (const bill of bills) expect(bill.committedCents).toBe(total);
+  });
+
+  test("category pace carries a running total in its own order", async () => {
+    if (!userId) return;
+
+    let running = 0;
+    for (const row of await getCategoryPace(userId)) {
+      running += row.thisMonthCents;
+      expect(row.runningCents).toBe(running);
+    }
   });
 });

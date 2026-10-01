@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isoDate } from "@/lib/dates";
 import { apiError } from "@/server/api";
 import { removeExpiredDemos } from "@/server/demo-accounts";
 import {
@@ -24,7 +25,7 @@ function authorised(request: NextRequest) {
 async function run(request: NextRequest) {
   if (!authorised(request)) return apiError("unauthorized", "Not allowed.");
 
-  const until = new Date().toISOString().slice(0, 10);
+  const until = isoDate(new Date());
   const userIds = await listUsersWithDueRules(until);
 
   let created = 0;

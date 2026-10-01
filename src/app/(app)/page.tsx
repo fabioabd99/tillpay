@@ -83,10 +83,7 @@ export default async function HomePage() {
     listCategoriesForUser(user.id),
   ]);
 
-  const committedCents = bills.reduce(
-    (sum, bill) => sum + Math.abs(bill.amountCents),
-    0,
-  );
+  const committedCents = bills[0]?.committedCents ?? 0;
   const safeToSpendCents = balanceCents - committedCents;
   const perDayCents = Math.floor(safeToSpendCents / daysLeft);
 

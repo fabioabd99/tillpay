@@ -19,6 +19,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { parseAmountToCents } from "@/lib/money";
 import { sendJson } from "@/lib/send-json";
+import { recurringRuleInputSchema } from "@/lib/validators/recurring";
 import { nextRunAfter } from "@/server/recurring";
 
 // Shown on Home while no salary is set: asks for the pay day and creates the
@@ -43,33 +44,36 @@ export function SalaryPrompt({
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    const dayNumber = Number(day);
-    if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 31) {
-      setError({ field: "day", message: "Enter a day from 1 to 31" });
+    // same schema as the API; the day is checked first because the first
+    // payday is worked out from it
+    const dayOfMonth = recurringRuleInputSchema.shape.dayOfMonth.safeParse(Number(day));
+    if (!dayOfMonth.success) {
+      setError({ field: "day", message: dayOfMonth.error.issues[0].message });
       return;
     }
 
-    const cents = parseAmountToCents(amount);
-    if (cents === null || cents <= 0) {
-      setError({ field: "amount", message: "Enter the amount, like 1500" });
-      return;
-    }
-
-    setSaving(true);
-    const rule = { frequency: "monthly", interval: 1, dayOfMonth: dayNumber, weekday: null } as const;
+    const rule = { frequency: "monthly", interval: 1, dayOfMonth: dayOfMonth.data, weekday: null } as const;
     // a monthly rule never ends, so there is always a next run
     const startsOn = nextRunAfter({ ...rule, startsOn: today, endsOn: null, nextRunOn: today }, today)!;
-    const response = await sendJson("/api/v1/recurring-rules", "POST", {
+    const parsed = recurringRuleInputSchema.safeParse({
       accountId,
       categoryId: salaryCategoryId,
       description: "Salary",
       type: "income",
-      amountCents: cents,
+      amountCents: parseAmountToCents(amount) ?? 0,
       ...rule,
       startsOn,
-      endsOn: null,
       isSalary: true,
     });
+
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      setError({ field: issue.path[0] === "amountCents" ? "amount" : "form", message: issue.message });
+      return;
+    }
+
+    setSaving(true);
+    const response = await sendJson("/api/v1/recurring-rules", "POST", parsed.data);
     setSaving(false);
 
     if (!response.ok) {

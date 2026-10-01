@@ -56,7 +56,8 @@ export async function getNextPayday(userId: string) {
   return row?.on ?? null;
 }
 
-// Recurring expenses due between today and `until`.
+// Recurring expenses due between today and `until`. Each row also carries the
+// total of all of them (positive), summed in SQL.
 export function getUpcomingBills(userId: string, until: string) {
   return db
     .select({
@@ -64,6 +65,7 @@ export function getUpcomingBills(userId: string, until: string) {
       description: recurringRules.description,
       amountCents: recurringRules.amountCents,
       dueOn: recurringRules.nextRunOn,
+      committedCents: sql<number>`(-sum(${recurringRules.amountCents}) over ())::int`,
     })
     .from(recurringRules)
     .where(
@@ -83,6 +85,8 @@ export type CategoryPace = {
   name: string;
   color: string | null;
   thisMonthCents: number;
+  // this category plus every larger one, for the Home spending bar
+  runningCents: number;
   usualCents: number | null;
 };
 
@@ -94,6 +98,7 @@ export async function getCategoryPace(userId: string): Promise<CategoryPace[]> {
     name: string;
     color: string | null;
     this_month_cents: number;
+    running_cents: number;
     usual_cents: number | null;
     months_of_history: number;
   }>(sql`
@@ -134,6 +139,10 @@ export async function getCategoryPace(userId: string): Promise<CategoryPace[]> {
            c.name,
            c.color,
            coalesce(tm.cents, 0) AS this_month_cents,
+           sum(coalesce(tm.cents, 0)) OVER (
+             ORDER BY coalesce(tm.cents, 0) DESC, c.id
+             ROWS UNBOUNDED PRECEDING
+           )::int AS running_cents,
            u.cents AS usual_cents,
            coalesce(u.months, 0) AS months_of_history
     FROM categories c
@@ -143,7 +152,7 @@ export async function getCategoryPace(userId: string): Promise<CategoryPace[]> {
       AND c.kind = 'expense'
       AND c.archived_at IS NULL
       AND coalesce(tm.cents, 0) > 0
-    ORDER BY coalesce(tm.cents, 0) DESC
+    ORDER BY coalesce(tm.cents, 0) DESC, c.id
   `);
 
   return rows.map((row) => ({
@@ -151,6 +160,7 @@ export async function getCategoryPace(userId: string): Promise<CategoryPace[]> {
     name: row.name,
     color: row.color,
     thisMonthCents: row.this_month_cents,
+    runningCents: row.running_cents,
     // need at least 2 months of history for an average
     usualCents: row.months_of_history >= 2 ? row.usual_cents : null,
   }));

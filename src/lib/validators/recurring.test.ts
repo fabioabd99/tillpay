@@ -32,4 +32,14 @@ describe("recurringRuleInputSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("asks for an amount when it is zero", () => {
+    const result = recurringRuleInputSchema.safeParse({ ...salary, amountCents: 0 });
+    expect(result.error?.issues[0].message).toBe("Enter an amount, like 12.50");
+  });
+
+  it("asks for a day of the month from 1 to 31", () => {
+    const result = recurringRuleInputSchema.safeParse({ ...salary, dayOfMonth: 0 });
+    expect(result.error?.issues[0].message).toBe("Enter a day from 1 to 31");
+  });
 });
