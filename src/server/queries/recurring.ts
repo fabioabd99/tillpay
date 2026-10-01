@@ -170,14 +170,22 @@ export async function setRuleActive(
   return row ?? null;
 }
 
-// Generated transactions are kept (FK is ON DELETE SET NULL).
+// Generated transactions are kept. Their rule link is cleared first: the FK's
+// SET NULL would leave occurrence_date behind and break transactions_recurring_pair.
 export async function deleteRecurringRule(userId: string, id: string) {
-  const [row] = await db
-    .delete(recurringRules)
-    .where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)))
-    .returning({ id: recurringRules.id });
+  return db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set({ recurringRuleId: null, occurrenceDate: null })
+      .where(and(eq(transactions.recurringRuleId, id), eq(transactions.userId, userId)));
 
-  return row ?? null;
+    const [row] = await tx
+      .delete(recurringRules)
+      .where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)))
+      .returning({ id: recurringRules.id });
+
+    return row ?? null;
+  });
 }
 
 export async function countGeneratedByRule(userId: string) {
