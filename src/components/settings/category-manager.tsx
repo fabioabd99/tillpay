@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { CategoryIcon } from "@/components/category-icon";
+import { TextField } from "@/components/text-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,13 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatCents } from "@/lib/money";
@@ -247,21 +242,13 @@ function CategoryDialog({
               </Alert>
             ) : null}
 
-            <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="category-name">Name</FieldLabel>
-              <Input
-                id="category-name"
-                className="h-11"
-                placeholder="Groceries"
-                aria-invalid={!!form.formState.errors.name}
-                {...form.register("name")}
-              />
-              {form.formState.errors.name ? (
-                <FieldDescription>
-                  {form.formState.errors.name.message}
-                </FieldDescription>
-              ) : null}
-            </Field>
+            <TextField
+              id="category-name"
+              label="Name"
+              placeholder="Groceries"
+              error={form.formState.errors.name?.message}
+              {...form.register("name")}
+            />
 
             <Field>
               <FieldLabel>Used for</FieldLabel>

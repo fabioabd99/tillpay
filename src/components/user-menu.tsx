@@ -100,18 +100,18 @@ export function UserMenu({
         <DropdownMenuGroup>
           <DropdownMenuLabel className="px-2">Theme</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
-            <DropdownMenuRadioItem value="light" className="h-9 gap-2 px-2 text-sm">
-              <Sun />
-              Light
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="dark" className="h-9 gap-2 px-2 text-sm">
-              <Moon />
-              Dark
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="system" className="h-9 gap-2 px-2 text-sm">
-              <Monitor />
-              Same as this device
-            </DropdownMenuRadioItem>
+            {(
+              [
+                ["light", Sun, "Light"],
+                ["dark", Moon, "Dark"],
+                ["system", Monitor, "Same as this device"],
+              ] as const
+            ).map(([value, Icon, label]) => (
+              <DropdownMenuRadioItem key={value} value={value} className="h-9 gap-2 px-2 text-sm">
+                <Icon />
+                {label}
+              </DropdownMenuRadioItem>
+            ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
 

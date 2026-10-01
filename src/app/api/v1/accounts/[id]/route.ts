@@ -2,11 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { accountInputSchema } from "@/lib/validators/account";
-import {
-  notFound,
-  requireApiUserForWrite,
-  validationError,
-} from "@/server/api";
+import { notFound, parseBody, requireApiUserForWrite } from "@/server/api";
 import { setAccountHidden, updateAccount } from "@/server/queries/accounts";
 
 type Context = { params: Promise<{ id: string }> };
@@ -16,12 +12,10 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = accountInputSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, accountInputSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const row = await updateAccount(user.id, id, parsed.data);
+  const row = await updateAccount(user.id, id, body);
   if (!row) return notFound();
 
   return NextResponse.json({ data: row });
@@ -35,12 +29,10 @@ export async function PUT(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = hiddenSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, hiddenSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const row = await setAccountHidden(user.id, id, parsed.data.hidden);
+  const row = await setAccountHidden(user.id, id, body.hidden);
   if (!row) return notFound();
 
   return NextResponse.json({ data: row });

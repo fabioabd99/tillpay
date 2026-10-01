@@ -115,24 +115,22 @@ export default async function TransactionsPage({
 
           <div className="grid gap-4 px-6 pt-5 sm:grid-cols-[auto_auto_minmax(0,1fr)] sm:items-end sm:gap-10 lg:px-8">
             <dl className="contents">
-              <div>
-                <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <ArrowDownLeft className="size-4" aria-hidden />
-                  Came in
-                </dt>
-                <dd className="mt-1">
-                  <Amount cents={result.incomeCents} className="text-2xl font-semibold tracking-tight" />
-                </dd>
-              </div>
-              <div>
-                <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <ArrowUpRight className="size-4" aria-hidden />
-                  Went out
-                </dt>
-                <dd className="mt-1">
-                  <Amount cents={result.expenseCents} className="text-2xl font-semibold tracking-tight" />
-                </dd>
-              </div>
+              {(
+                [
+                  [ArrowDownLeft, "Came in", result.incomeCents],
+                  [ArrowUpRight, "Went out", result.expenseCents],
+                ] as const
+              ).map(([Icon, label, cents]) => (
+                <div key={label}>
+                  <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Icon className="size-4" aria-hidden />
+                    {label}
+                  </dt>
+                  <dd className="mt-1">
+                    <Amount cents={cents} className="text-2xl font-semibold tracking-tight" />
+                  </dd>
+                </div>
+              ))}
             </dl>
           </div>
 

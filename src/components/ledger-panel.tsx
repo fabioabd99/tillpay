@@ -1,3 +1,4 @@
+import { Amount } from "@/components/amount";
 import { formatCents } from "@/lib/money";
 
 // Sample ledger shown on the auth pages.
@@ -9,10 +10,6 @@ const ENTRIES = [
   { date: "25 Sep", label: "Monthly salary", cents: 255000, balance: 1884496 },
   { date: "26 Sep", label: "To savings", cents: -32000, balance: 1852496 },
 ] as const;
-
-function signed(cents: number) {
-  return `${cents > 0 ? "+" : "−"}${formatCents(Math.abs(cents), "EUR")}`;
-}
 
 export function LedgerPanel() {
   return (
@@ -57,13 +54,7 @@ export function LedgerPanel() {
                 </span>
 
                 <span className="flex items-baseline gap-4 text-sm tabular-nums">
-                  <span
-                    className={
-                      entry.cents > 0 ? "text-positive" : "text-negative"
-                    }
-                  >
-                    {signed(entry.cents)}
-                  </span>
+                  <Amount cents={entry.cents} />
                   <span className="hidden w-24 text-right text-brand-ink-foreground/70 xl:inline">
                     {formatCents(entry.balance, "EUR")}
                   </span>

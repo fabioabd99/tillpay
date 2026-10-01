@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { Check, TriangleAlert, Wallet } from "lucide-react";
 
+import { Amount } from "@/components/amount";
 import { Tile } from "@/components/home/tile";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -98,7 +99,9 @@ export function SpendHero({
         </div>
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Bills still to pay</dt>
-          <dd className="font-medium tabular-nums">{committedCents > 0 ? "−" : ""}{formatCents(committedCents, "EUR")}</dd>
+          <dd className="font-medium">
+            <Amount cents={-committedCents} colored={false} />
+          </dd>
         </div>
       </dl>
     </Tile>

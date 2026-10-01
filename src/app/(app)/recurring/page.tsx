@@ -1,12 +1,9 @@
 import { RecurringManager } from "@/components/recurring/recurring-manager";
 import { PageHeader } from "@/components/ui/surface";
 import { requireUser } from "@/server/auth-context";
+import { listRecurringRules } from "@/server/queries/recurring";
 import {
-  countGeneratedByRule,
-  listRecurringRules,
-} from "@/server/queries/recurring";
-import {
-  listAccountsForUser,
+  listAccountBalances,
   listCategoriesForUser,
 } from "@/server/queries/transactions";
 
@@ -15,11 +12,10 @@ export const metadata = { title: "Repeating · Tillpay" };
 export default async function RecurringPage() {
   const user = await requireUser();
 
-  const [rules, accounts, categories, counts] = await Promise.all([
+  const [rules, accounts, categories] = await Promise.all([
     listRecurringRules(user.id),
-    listAccountsForUser(user.id),
+    listAccountBalances(user.id),
     listCategoriesForUser(user.id),
-    countGeneratedByRule(user.id),
   ]);
 
   return (
@@ -33,7 +29,6 @@ export default async function RecurringPage() {
         rules={rules}
         accounts={accounts}
         categories={categories}
-        generated={Object.fromEntries(counts)}
       />
     </main>
   );

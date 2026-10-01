@@ -46,12 +46,10 @@ export function RecurringManager({
   rules,
   accounts,
   categories,
-  generated,
 }: {
   rules: RecurringRuleRow[];
   accounts: Option[];
   categories: Option[];
-  generated: Record<string, number>;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -116,9 +114,7 @@ export function RecurringManager({
                   {FREQUENCY_LABELS[rule.frequency]}
                   {rule.interval > 1 ? ` · every ${rule.interval}` : ""} ·{" "}
                   {rule.accountName}
-                  {generated[rule.id]
-                    ? ` · ${generated[rule.id]} created so far`
-                    : ""}
+                  {rule.generated ? ` · ${rule.generated} created so far` : ""}
                 </p>
               </div>
 

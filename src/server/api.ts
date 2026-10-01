@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { ZodError } from "zod";
+import type { z, ZodError } from "zod";
 
 import { getSession } from "@/server/auth-context";
 import { checkRateLimit } from "@/server/rate-limit";
@@ -40,6 +40,15 @@ export function validationError(error: ZodError) {
   }
 
   return apiError("validation_failed", "Check the highlighted fields.", fields);
+}
+
+// JSON body checked against a schema: the data, or the 400 to send back.
+export async function parseBody<S extends z.ZodType>(request: Request, schema: S) {
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+
+  return parsed.success
+    ? { body: parsed.data as z.output<S>, invalid: null }
+    : { body: null, invalid: validationError(parsed.error) };
 }
 
 // 401 instead of a redirect for API routes. Returns the user or the response.

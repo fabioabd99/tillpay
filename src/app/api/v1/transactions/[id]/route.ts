@@ -4,9 +4,9 @@ import { transactionInputSchema } from "@/lib/validators/transaction";
 import {
   apiError,
   notFound,
+  parseBody,
   requireApiUser,
   requireApiUserForWrite,
-  validationError,
 } from "@/server/api";
 import {
   TRANSFER_NOT_EDITABLE,
@@ -35,12 +35,10 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = transactionInputSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, transactionInputSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const result = await updateTransaction(user.id, id, parsed.data);
+  const result = await updateTransaction(user.id, id, body);
 
   if (result === TRANSFER_NOT_EDITABLE) {
     return apiError(

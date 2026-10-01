@@ -5,15 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
+import { TextField } from "@/components/text-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { signUpSchema, type SignUpValues } from "@/lib/validators/auth";
@@ -56,56 +51,35 @@ export function SignUpForm() {
           </Alert>
         ) : null}
 
-        <Field data-invalid={!!form.formState.errors.name}>
-          <FieldLabel htmlFor="name">Name</FieldLabel>
-          <Input
-            id="name"
-            className="h-11"
-            autoComplete="name"
-            aria-invalid={!!form.formState.errors.name}
-            {...form.register("name")}
-          />
-          {form.formState.errors.name ? (
-            <FieldDescription>
-              {form.formState.errors.name.message}
-            </FieldDescription>
-          ) : null}
-        </Field>
+        <TextField
+          id="name"
+          label="Name"
+          autoComplete="name"
+          error={form.formState.errors.name?.message}
+          {...form.register("name")}
+        />
 
-        <Field data-invalid={!!form.formState.errors.email}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            className="h-11"
-            type="email"
-            autoComplete="email"
-            spellCheck={false}
-            autoCapitalize="none"
-            placeholder="you@example.com"
-            aria-invalid={!!form.formState.errors.email}
-            {...form.register("email")}
-          />
-          {form.formState.errors.email ? (
-            <FieldDescription>
-              {form.formState.errors.email.message}
-            </FieldDescription>
-          ) : null}
-        </Field>
+        <TextField
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          spellCheck={false}
+          autoCapitalize="none"
+          placeholder="you@example.com"
+          error={form.formState.errors.email?.message}
+          {...form.register("email")}
+        />
 
-        <Field data-invalid={!!form.formState.errors.password}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input
-            id="password"
-            className="h-11"
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={!!form.formState.errors.password}
-            {...form.register("password")}
-          />
-          <FieldDescription>
-            {form.formState.errors.password?.message ?? "At least 10 characters. A short phrase works well."}
-          </FieldDescription>
-        </Field>
+        <TextField
+          id="password"
+          label="Password"
+          type="password"
+          autoComplete="new-password"
+          hint="At least 10 characters. A short phrase works well."
+          error={form.formState.errors.password?.message}
+          {...form.register("password")}
+        />
 
         <Button type="submit" className="h-11" disabled={isBusy}>
           {isBusy ? <Spinner data-icon="inline-start" /> : null}

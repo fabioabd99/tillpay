@@ -27,6 +27,8 @@ export function listRecurringRules(userId: string) {
       categoryId: categories.id,
       categoryName: categories.name,
       categoryColor: categories.color,
+      // transactions it has created so far
+      generated: sql<number>`(select count(*) from ${transactions} where ${transactions.recurringRuleId} = ${recurringRules.id})::int`,
     })
     .from(recurringRules)
     .innerJoin(accounts, eq(accounts.id, recurringRules.accountId))
@@ -186,22 +188,4 @@ export async function deleteRecurringRule(userId: string, id: string) {
 
     return row ?? null;
   });
-}
-
-export async function countGeneratedByRule(userId: string) {
-  const rows = await db
-    .select({
-      ruleId: transactions.recurringRuleId,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.userId, userId),
-        sql`${transactions.recurringRuleId} is not null`,
-      ),
-    )
-    .groupBy(transactions.recurringRuleId);
-
-  return new Map(rows.map((row) => [row.ruleId, row.count]));
 }

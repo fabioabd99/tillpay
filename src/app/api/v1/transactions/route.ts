@@ -4,8 +4,12 @@ import {
   parseTransactionFilters,
   transactionInputSchema,
 } from "@/lib/validators/transaction";
-import { notFound, requireApiUser,
-  requireApiUserForWrite, validationError } from "@/server/api";
+import {
+  notFound,
+  parseBody,
+  requireApiUser,
+  requireApiUserForWrite,
+} from "@/server/api";
 import {
   createTransaction,
   listTransactions,
@@ -37,12 +41,10 @@ export async function POST(request: NextRequest) {
   const { user, response } = await requireApiUserForWrite();
   if (!user) return response;
 
-  const body = await request.json().catch(() => null);
-  const parsed = transactionInputSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, transactionInputSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const row = await createTransaction(user.id, parsed.data);
+  const row = await createTransaction(user.id, body);
 
   if (!row) return notFound();
 

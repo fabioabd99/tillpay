@@ -4,8 +4,8 @@ import { transferInputSchema } from "@/lib/validators/transaction";
 import {
   apiError,
   notFound,
+  parseBody,
   requireApiUserForWrite,
-  validationError,
 } from "@/server/api";
 import {
   TRANSFER_CURRENCY_MISMATCH,
@@ -17,12 +17,10 @@ export async function POST(request: NextRequest) {
   const { user, response } = await requireApiUserForWrite();
   if (!user) return response;
 
-  const body = await request.json().catch(() => null);
-  const parsed = transferInputSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, transferInputSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const result = await createTransfer(user.id, parsed.data);
+  const result = await createTransfer(user.id, body);
 
   if (result === TRANSFER_SAME_ACCOUNT) {
     return apiError("validation_failed", "Choose two different accounts.", {

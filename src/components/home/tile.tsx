@@ -1,6 +1,7 @@
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import { SURFACE } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
 
 // Home page card: coloured icon + title, optional note on the right, and the
@@ -44,9 +45,8 @@ export function Tile({
   );
 
   const shell = cn(
-    "group flex flex-col rounded-3xl p-6 transition-colors duration-200",
-    "bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)]",
-    "dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]",
+    SURFACE,
+    "group flex flex-col p-6 transition-colors duration-200",
     href && "cursor-pointer hover:bg-muted/40 dark:hover:bg-white/[0.07]",
     className,
   );

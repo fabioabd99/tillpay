@@ -1,6 +1,9 @@
 import { cn } from "@/lib/utils";
 
 // Card surface used across the app: soft shadow in light mode, 1px ring in dark.
+export const SURFACE =
+  "rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]";
+
 export function Surface({
   as: Component = "div",
   className,
@@ -13,12 +16,7 @@ export function Surface({
 } & React.HTMLAttributes<HTMLElement>) {
   return (
     <Component
-      className={cn(
-        "rounded-3xl bg-card",
-        "shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)]",
-        "dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]",
-        className,
-      )}
+      className={cn(SURFACE, className)}
       {...props}
     >
       {children}

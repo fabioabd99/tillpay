@@ -84,10 +84,9 @@ export function BudgetManager({
       ) : (
         <ul className="flex flex-col gap-3">
           {budgets.map((budget) => {
-            const over = budget.spentCents > budget.limitCents;
             const left = budget.limitCents - budget.spentCents;
             const state = capState(budget.used);
-            const standing = over
+            const standing = state === "over"
               ? `${formatCents(-left, "EUR")} over`
               : `${formatCents(left, "EUR")} left`;
             const standingTone = cn(
@@ -153,9 +152,7 @@ export function BudgetManager({
                   <div
                     className={cn(
                       "h-full rounded-full transition-[width] duration-500",
-                      state === "over" && "bg-negative",
-                      state === "near" && "bg-warning",
-                      state === "ok" && "bg-primary",
+                      { over: "bg-negative", near: "bg-warning", ok: "bg-primary" }[state],
                     )}
                     style={{
                       width: `${Math.min(100, Math.max(2, budget.used * 100))}%`,

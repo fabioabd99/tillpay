@@ -3,8 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isoDate } from "@/lib/dates";
 import { budgetInputSchema } from "@/lib/validators/budget";
-import { requireApiUser,
-  requireApiUserForWrite, validationError } from "@/server/api";
+import { parseBody, requireApiUser, requireApiUserForWrite } from "@/server/api";
 import { getBudgetProgress, upsertBudget } from "@/server/queries/budgets";
 
 export async function GET(request: NextRequest) {
@@ -23,16 +22,14 @@ export async function PUT(request: NextRequest) {
   const { user, response } = await requireApiUserForWrite();
   if (!user) return response;
 
-  const body = await request.json().catch(() => null);
-  const parsed = budgetInputSchema.safeParse(body);
-
-  if (!parsed.success) return validationError(parsed.error);
+  const { body, invalid } = await parseBody(request, budgetInputSchema);
+  if (!body) return invalid;
 
   const row = await upsertBudget(
     user.id,
-    parsed.data.categoryId,
-    parsed.data.periodMonth,
-    parsed.data.limitCents,
+    body.categoryId,
+    body.periodMonth,
+    body.limitCents,
   );
 
   return NextResponse.json({ data: row });

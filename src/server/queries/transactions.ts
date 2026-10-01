@@ -338,19 +338,6 @@ export async function getBalanceSeries(
   }));
 }
 
-export function listAccountsForUser(userId: string) {
-  return db
-    .select({
-      id: accounts.id,
-      name: accounts.name,
-      kind: accounts.kind,
-      currency: accounts.currency,
-    })
-    .from(accounts)
-    .where(and(eq(accounts.userId, userId), isNull(accounts.archivedAt)))
-    .orderBy(asc(accounts.name));
-}
-
 export function listCategoriesForUser(userId: string) {
   return db
     .select({

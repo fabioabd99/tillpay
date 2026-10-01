@@ -1,4 +1,4 @@
-import { addDays, startOfMonth, subMonths } from "date-fns";
+import { addDays, addMonths, startOfMonth, subMonths } from "date-fns";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -150,9 +150,7 @@ export async function seedDemoData(userId: string) {
     ])
     .returning();
 
-  const checking = accountRows[0];
-  const savings = accountRows[1];
-  const cash = accountRows[2];
+  const [checking, savings, cash] = accountRows;
 
   const categoryRows = await db
     .select()
@@ -164,6 +162,21 @@ export async function seedDemoData(userId: string) {
 
   type NewTransaction = typeof transactions.$inferInsert;
   const rows: NewTransaction[] = [];
+
+  // both legs of a transfer between two of the demo accounts
+  const transfer = (
+    from: string,
+    to: string,
+    cents: number,
+    occurredOn: string,
+    [fromLabel, toLabel]: [string, string],
+  ) => {
+    const transferGroupId = crypto.randomUUID();
+    rows.push(
+      { userId, accountId: from, type: "transfer", amountCents: -cents, occurredOn, description: fromLabel, transferGroupId },
+      { userId, accountId: to, type: "transfer", amountCents: cents, occurredOn, description: toLabel, transferGroupId },
+    );
+  };
 
   const firstMonth = startOfMonth(subMonths(new Date(), MONTHS - 1));
   const startsOn = isoDate(firstMonth);
@@ -224,13 +237,7 @@ export async function seedDemoData(userId: string) {
   }
 
   for (let monthOffset = 0; monthOffset < MONTHS; monthOffset++) {
-    const monthStart = startOfMonth(
-      new Date(
-        firstMonth.getFullYear(),
-        firstMonth.getMonth() + monthOffset,
-        1,
-      ),
-    );
+    const monthStart = addMonths(firstMonth, monthOffset);
 
     if (random() < 0.45) {
       rows.push({
@@ -270,55 +277,19 @@ export async function seedDemoData(userId: string) {
     const cashSpend = monthExpenses
       .filter((row) => row.accountId === cash.id)
       .reduce((sum, row) => sum + Math.abs(row.amountCents), 0);
-    const withdrawalCents = cashSpend + randomInt(2000, 6000);
-    const withdrawalGroupId = crypto.randomUUID();
-
-    rows.push(
-      {
-        userId,
-        accountId: checking.id,
-        type: "transfer",
-        amountCents: -withdrawalCents,
-        occurredOn: day(monthStart),
-        description: "ATM withdrawal",
-        transferGroupId: withdrawalGroupId,
-      },
-      {
-        userId,
-        accountId: cash.id,
-        type: "transfer",
-        amountCents: withdrawalCents,
-        occurredOn: day(monthStart),
-        description: "ATM withdrawal",
-        transferGroupId: withdrawalGroupId,
-      },
-    );
+    transfer(checking.id, cash.id, cashSpend + randomInt(2000, 6000), day(monthStart), [
+      "ATM withdrawal",
+      "ATM withdrawal",
+    ]);
 
     rows.push(...monthExpenses);
 
-    const transferGroupId = crypto.randomUUID();
-    const transferCents = randomInt(15000, 40000);
-    const transferOn = day(addDays(monthStart, 26));
-
-    rows.push(
-      {
-        userId,
-        accountId: checking.id,
-        type: "transfer",
-        amountCents: -transferCents,
-        occurredOn: transferOn,
-        description: "To savings",
-        transferGroupId,
-      },
-      {
-        userId,
-        accountId: savings.id,
-        type: "transfer",
-        amountCents: transferCents,
-        occurredOn: transferOn,
-        description: "From checking",
-        transferGroupId,
-      },
+    transfer(
+      checking.id,
+      savings.id,
+      randomInt(15000, 40000),
+      day(addDays(monthStart, 26)),
+      ["To savings", "From checking"],
     );
   }
 
@@ -326,32 +297,21 @@ export async function seedDemoData(userId: string) {
 
   const currentMonth = day(startOfMonth(new Date()));
 
-  await db.insert(budgets).values([
-    {
+  const caps = [
+    ["Groceries", 40000],
+    ["Dining", 15000],
+    ["Transport", 12000],
+    ["Entertainment", 8000],
+  ] as const;
+
+  await db.insert(budgets).values(
+    caps.map(([name, limitCents]) => ({
       userId,
-      categoryId: categoryId("Groceries"),
+      categoryId: categoryId(name),
       periodMonth: currentMonth,
-      limitCents: 40000,
-    },
-    {
-      userId,
-      categoryId: categoryId("Dining"),
-      periodMonth: currentMonth,
-      limitCents: 15000,
-    },
-    {
-      userId,
-      categoryId: categoryId("Transport"),
-      periodMonth: currentMonth,
-      limitCents: 12000,
-    },
-    {
-      userId,
-      categoryId: categoryId("Entertainment"),
-      periodMonth: currentMonth,
-      limitCents: 8000,
-    },
-  ]);
+      limitCents,
+    })),
+  );
 
   return { accounts: accountRows.length, transactions: rows.length };
 }

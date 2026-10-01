@@ -256,9 +256,9 @@ export default async function HomePage() {
                       <span
                         className={cn(
                           "block h-full rounded-full",
-                          capState(budget.used) === "over" && "bg-negative",
-                          capState(budget.used) === "near" && "bg-warning",
-                          capState(budget.used) === "ok" && "bg-tone-budgets",
+                          { over: "bg-negative", near: "bg-warning", ok: "bg-tone-budgets" }[
+                            capState(budget.used)
+                          ],
                         )}
                         style={{ width: `${Math.min(100, budget.used * 100)}%` }}
                       />

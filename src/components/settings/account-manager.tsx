@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { OptionSelect } from "@/components/option-select";
+import { TextField } from "@/components/text-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,13 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCents, parseAmountToCents } from "@/lib/money";
 import { sendJson } from "@/lib/send-json";
@@ -237,21 +232,13 @@ function AccountDialog({
               </Alert>
             ) : null}
 
-            <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="account-name">Name</FieldLabel>
-              <Input
-                id="account-name"
-                className="h-11"
-                placeholder="Main Checking"
-                aria-invalid={!!form.formState.errors.name}
-                {...form.register("name")}
-              />
-              {form.formState.errors.name ? (
-                <FieldDescription>
-                  {form.formState.errors.name.message}
-                </FieldDescription>
-              ) : null}
-            </Field>
+            <TextField
+              id="account-name"
+              label="Name"
+              placeholder="Main Checking"
+              error={form.formState.errors.name?.message}
+              {...form.register("name")}
+            />
 
             <Field>
               <FieldLabel htmlFor="account-kind">Type</FieldLabel>
@@ -274,39 +261,29 @@ function AccountDialog({
               </FieldDescription>
             </Field>
 
-            <Field data-invalid={!!form.formState.errors.openingBalance}>
-              <FieldLabel htmlFor="account-opening">Opening amount</FieldLabel>
-              <Input
-                id="account-opening"
-                inputMode="decimal"
-                autoComplete="off"
-                className="h-11 tabular-nums"
-                placeholder="0.00"
-                aria-invalid={!!form.formState.errors.openingBalance}
-                {...form.register("openingBalance")}
-              />
-              <FieldDescription>
-                {form.formState.errors.openingBalance?.message ??
-                  "Can be negative for a card you owe on."}
-              </FieldDescription>
-            </Field>
+            <TextField
+              id="account-opening"
+              label="Opening amount"
+              inputMode="decimal"
+              autoComplete="off"
+              className="tabular-nums"
+              placeholder="0.00"
+              hint="Can be negative for a card you owe on."
+              error={form.formState.errors.openingBalance?.message}
+              {...form.register("openingBalance")}
+            />
 
-            <Field data-invalid={!!form.formState.errors.currency}>
-              <FieldLabel htmlFor="account-currency">Currency</FieldLabel>
-              <Input
-                id="account-currency"
-                className="h-11 font-mono uppercase"
-                maxLength={3}
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={!!form.formState.errors.currency}
-                {...form.register("currency")}
-              />
-              <FieldDescription>
-                {form.formState.errors.currency?.message ??
-                  "Tillpay does not convert between currencies, so accounts in different ones cannot transfer to each other."}
-              </FieldDescription>
-            </Field>
+            <TextField
+              id="account-currency"
+              label="Currency"
+              className="font-mono uppercase"
+              maxLength={3}
+              autoComplete="off"
+              spellCheck={false}
+              hint="Tillpay does not convert between currencies, so accounts in different ones cannot transfer to each other."
+              error={form.formState.errors.currency?.message}
+              {...form.register("currency")}
+            />
           </FieldGroup>
 
           <DialogFooter className="mt-6">

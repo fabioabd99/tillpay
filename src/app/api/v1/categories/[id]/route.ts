@@ -5,8 +5,8 @@ import { categoryInputSchema } from "@/lib/validators/category";
 import {
   apiError,
   notFound,
+  parseBody,
   requireApiUserForWrite,
-  validationError,
 } from "@/server/api";
 import {
   CATEGORY_NAME_TAKEN,
@@ -21,12 +21,10 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = categoryInputSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, categoryInputSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const result = await updateCategory(user.id, id, parsed.data);
+  const result = await updateCategory(user.id, id, body);
 
   if (result === CATEGORY_NAME_TAKEN) {
     return apiError("conflict", "You already have a category with that name.");
@@ -45,12 +43,10 @@ export async function PUT(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = hiddenSchema.safeParse(body);
+  const { body, invalid } = await parseBody(request, hiddenSchema);
+  if (!body) return invalid;
 
-  if (!parsed.success) return validationError(parsed.error);
-
-  const row = await setCategoryHidden(user.id, id, parsed.data.hidden);
+  const row = await setCategoryHidden(user.id, id, body.hidden);
   if (!row) return notFound();
 
   return NextResponse.json({ data: row });

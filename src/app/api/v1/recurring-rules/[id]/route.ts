@@ -1,11 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
-import {
-  notFound,
-  requireApiUserForWrite,
-  validationError,
-} from "@/server/api";
+import { notFound, parseBody, requireApiUserForWrite } from "@/server/api";
 import {
   deleteRecurringRule,
   setRuleActive,
@@ -25,14 +21,12 @@ export async function PUT(request: NextRequest, context: Context) {
   if (!user) return response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = updateSchema.safeParse(body);
-
-  if (!parsed.success) return validationError(parsed.error);
+  const { body, invalid } = await parseBody(request, updateSchema);
+  if (!body) return invalid;
 
   const row =
-    "active" in parsed.data
-      ? await setRuleActive(user.id, id, parsed.data.active)
+    "active" in body
+      ? await setRuleActive(user.id, id, body.active)
       : await setRuleSalary(user.id, id);
 
   if (!row) return notFound();
