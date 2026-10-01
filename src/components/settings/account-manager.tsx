@@ -7,9 +7,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { OptionSelect } from "@/components/option-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import {
   Dialog,
   DialogContent,
@@ -25,16 +27,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCents, parseAmountToCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
 import {
   ACCOUNT_KINDS,
@@ -61,15 +56,8 @@ export function AccountManager({ accounts }: { accounts: AccountListRow[] }) {
   const [editing, setEditing] = useState<AccountListRow | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const visible = accounts.filter((account) => !account.archivedAt);
-  const hidden = accounts.filter((account) => account.archivedAt);
-
   async function toggleHidden(account: AccountListRow) {
-    await fetch(`/api/v1/accounts/${account.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hidden: !account.archivedAt }),
-    });
+    await sendJson(`/api/v1/accounts/${account.id}`, "PUT", { hidden: !account.archivedAt });
     router.refresh();
   }
 
@@ -92,8 +80,8 @@ export function AccountManager({ accounts }: { accounts: AccountListRow[] }) {
         </Button>
       </header>
 
-      <ul className="overflow-hidden rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]">
-        {visible.concat(hidden).map((account) => (
+      <Surface as="ul" className="overflow-hidden">
+        {accounts.map((account) => (
           <li
             key={account.id}
             className={cn(
@@ -150,7 +138,7 @@ export function AccountManager({ accounts }: { accounts: AccountListRow[] }) {
             </div>
           </li>
         ))}
-      </ul>
+      </Surface>
 
       <p className="px-1 text-sm text-muted-foreground">
         Accounts are hidden, not deleted, so their transactions are kept. You
@@ -203,17 +191,14 @@ function AccountDialog({
   async function submit(values: FormValues) {
     setFormError(null);
 
-    const response = await fetch(
+    const response = await sendJson(
       account ? `/api/v1/accounts/${account.id}` : "/api/v1/accounts",
+      account ? "PATCH" : "POST",
       {
-        method: account ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name,
-          kind: values.kind,
-          currency: values.currency.toUpperCase(),
-          initialBalanceCents: parseAmountToCents(values.openingBalance)!,
-        }),
+        name: values.name,
+        kind: values.kind,
+        currency: values.currency.toUpperCase(),
+        initialBalanceCents: parseAmountToCents(values.openingBalance)!,
       },
     );
 
@@ -270,33 +255,19 @@ function AccountDialog({
 
             <Field>
               <FieldLabel htmlFor="account-kind">Type</FieldLabel>
-              <Select
+              <OptionSelect
+                id="account-kind"
                 value={kind}
-                onValueChange={(value) => {
-                  const next = String(value ?? "");
-                  if (ACCOUNT_KINDS.includes(next as typeof kind)) {
-                    form.setValue("kind", next as typeof kind);
-                  }
+                placeholder="Choose a type"
+                options={ACCOUNT_KINDS.map((option) => ({
+                  value: option,
+                  label: ACCOUNT_KIND_LABELS[option],
+                }))}
+                onChange={(value) => {
+                  const next = ACCOUNT_KINDS.find((option) => option === value);
+                  if (next) form.setValue("kind", next);
                 }}
-              >
-                <SelectTrigger id="account-kind" className="h-11">
-                  <SelectValue>
-                    {(value) =>
-                      ACCOUNT_KIND_LABELS[String(value) as typeof kind] ??
-                      "Choose a type"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {ACCOUNT_KINDS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {ACCOUNT_KIND_LABELS[option]}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              />
               <FieldDescription>
                 Savings are left out of &ldquo;you can spend&rdquo; on the home
                 screen.

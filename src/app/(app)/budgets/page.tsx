@@ -2,6 +2,7 @@ import { format, startOfMonth } from "date-fns";
 
 import { BudgetManager } from "@/components/budgets/budget-manager";
 import { PageHeader } from "@/components/ui/surface";
+import { isoDate } from "@/lib/dates";
 import { requireUser } from "@/server/auth-context";
 import { getBudgetProgress } from "@/server/queries/budgets";
 import { listCategoriesForUser } from "@/server/queries/transactions";
@@ -10,7 +11,7 @@ export const metadata = { title: "Budgets · Tillpay" };
 
 export default async function BudgetsPage() {
   const user = await requireUser();
-  const month = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const month = isoDate(startOfMonth(new Date()));
 
   const [budgets, categories] = await Promise.all([
     getBudgetProgress(user.id, month),

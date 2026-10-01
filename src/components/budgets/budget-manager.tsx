@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { CategoryIcon } from "@/components/category-icon";
+import { MoneyInput } from "@/components/money-input";
+import { OptionSelect } from "@/components/option-select";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import {
   Dialog,
   DialogContent,
@@ -20,17 +23,9 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { capState } from "@/lib/cap-state";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatCents, parseAmountToCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
 import type { BudgetProgress } from "@/server/queries/budgets";
 
@@ -83,9 +78,9 @@ export function BudgetManager({
       </header>
 
       {budgets.length === 0 ? (
-        <p className="rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06] p-6 text-center text-muted-foreground">
+        <Surface as="p" className="p-6 text-center text-muted-foreground">
           No caps set for this month.
-        </p>
+        </Surface>
       ) : (
         <ul className="flex flex-col gap-3">
           {budgets.map((budget) => {
@@ -102,7 +97,7 @@ export function BudgetManager({
             );
 
             return (
-              <li key={budget.id} className="rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06] p-4">
+              <Surface as="li" key={budget.id} className="p-4">
                 <div className="flex items-center gap-3">
                   <CategoryIcon
                     category={budget.categoryName}
@@ -167,7 +162,7 @@ export function BudgetManager({
                     }}
                   />
                 </div>
-              </li>
+              </Surface>
             );
           })}
         </ul>
@@ -228,14 +223,10 @@ function BudgetDialog({
     }
 
     setSaving(true);
-    const response = await fetch("/api/v1/budgets", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        categoryId,
-        periodMonth: month,
-        limitCents: cents,
-      }),
+    const response = await sendJson("/api/v1/budgets", "PUT", {
+      categoryId,
+      periodMonth: month,
+      limitCents: cents,
     });
     setSaving(false);
 
@@ -263,55 +254,31 @@ function BudgetDialog({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="budget-category">Category</FieldLabel>
-            <Select
+            <OptionSelect
+              id="budget-category"
               value={categoryId}
-              onValueChange={(value) => setCategoryId(String(value ?? ""))}
+              placeholder={budget?.categoryName ?? "Choose a category"}
+              options={categories.map((category) => ({
+                value: category.id,
+                label: category.name,
+              }))}
+              onChange={setCategoryId}
               disabled={!!budget}
-            >
-              <SelectTrigger id="budget-category" className="h-11">
-                <SelectValue>
-                  {(value) =>
-                    categories.find((c) => c.id === value)?.name ??
-                    budget?.categoryName ??
-                    "Choose a category"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            />
           </Field>
 
           <Field data-invalid={!!error}>
             <FieldLabel htmlFor="budget-amount">Cap</FieldLabel>
-            <div className="relative">
-              <span
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              >
-                €
-              </span>
-              <Input
-                id="budget-amount"
-                inputMode="decimal"
-                autoComplete="off"
-                className="h-11 pl-7 tabular-nums"
-                placeholder="250.00"
-                value={amount}
-                aria-invalid={!!error}
-                onChange={(event) => {
-                  setAmount(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
+            <MoneyInput
+              id="budget-amount"
+              placeholder="250.00"
+              value={amount}
+              aria-invalid={!!error}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError(null);
+              }}
+            />
             {error ? <FieldDescription>{error}</FieldDescription> : null}
           </Field>
         </FieldGroup>

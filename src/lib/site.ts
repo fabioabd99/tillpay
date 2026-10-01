@@ -1,3 +1,5 @@
+import { authBaseUrl } from "@/lib/env";
+
 export const SITE_NAME = "Tillpay";
 
 export const SITE_TITLE = "Tillpay: know what you can spend until payday";
@@ -8,11 +10,7 @@ export const SITE_DESCRIPTION =
 // --primary as hex
 export const BRAND_COLOR = "#2653c1";
 
-// NEXT_PUBLIC_SITE_URL, then the Vercel production URL, then localhost.
+// NEXT_PUBLIC_SITE_URL, then the auth URL (or Vercel's production URL), then localhost.
 export function siteUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  }
-  return "http://localhost:3000";
+  return process.env.NEXT_PUBLIC_SITE_URL || authBaseUrl() || "http://localhost:3000";
 }

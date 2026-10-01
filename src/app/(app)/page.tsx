@@ -16,6 +16,7 @@ import { orderAccounts } from "@/lib/account-order";
 import { Tile, TileHeadline } from "@/components/home/tile";
 import { WalletStack } from "@/components/home/wallet-stack";
 import { capState } from "@/lib/cap-state";
+import { isoDate, parseDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { spendingSegments } from "@/lib/spending-segments";
 import { cn } from "@/lib/utils";
@@ -39,8 +40,6 @@ import {
 
 export const metadata = { title: "Tillpay" };
 
-const iso = (date: Date) => format(date, "yyyy-MM-dd");
-
 export default async function HomePage() {
   const user = await requireUser();
   const today = new Date();
@@ -49,7 +48,7 @@ export default async function HomePage() {
 
   // The cycle runs until the next salary (or the end of the month if there's none).
   const payday = await getNextPayday(user.id);
-  const runsUntil = payday ? new Date(`${payday}T12:00:00`) : endOfMonth(today);
+  const runsUntil = payday ? parseDate(payday) : endOfMonth(today);
 
   // go back until the cycle start is not in the future
   let cycleStart = payday ? subMonths(runsUntil, 1) : startOfMonth(today);
@@ -73,13 +72,13 @@ export default async function HomePage() {
     categories,
   ] = await Promise.all([
     getSpendableBalance(user.id),
-    getUpcomingBills(user.id, iso(runsUntil)),
+    getUpcomingBills(user.id, isoDate(runsUntil)),
     getCategoryPace(user.id),
     getUncategorisedCount(user.id),
     getMonthTotals(user.id),
-    getBudgetProgress(user.id, iso(startOfMonth(today))),
+    getBudgetProgress(user.id, isoDate(startOfMonth(today))),
     listAccountBalances(user.id),
-    getSpentSince(user.id, iso(cycleStart)),
+    getSpentSince(user.id, isoDate(cycleStart)),
     listTransactions(user.id, parseTransactionFilters({})),
     listCategoriesForUser(user.id),
   ]);
@@ -109,11 +108,11 @@ export default async function HomePage() {
   const hasAlerts = uncategorised > 0 || !!overspending;
 
   const dayLabel = (date: string) =>
-    date === iso(today)
+    date === isoDate(today)
       ? "Today"
-      : date === iso(subDays(today, 1))
+      : date === isoDate(subDays(today, 1))
         ? "Yesterday"
-        : format(new Date(`${date}T12:00:00`), "d MMM");
+        : format(parseDate(date), "d MMM");
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 lg:py-10">
@@ -146,7 +145,7 @@ export default async function HomePage() {
                     (category) => category.kind === "income" && category.name === "Salary",
                   )?.id ?? null
                 }
-                today={iso(today)}
+                today={isoDate(today)}
               />
             }
           />
@@ -220,7 +219,7 @@ export default async function HomePage() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{bill.description}</span>
                   <span className="block text-sm text-muted-foreground">
-                    {format(new Date(`${bill.dueOn}T12:00:00`), "EEE, d MMM")}
+                    {format(parseDate(bill.dueOn), "EEE, d MMM")}
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums">
@@ -326,7 +325,7 @@ export default async function HomePage() {
                 title="Running high"
                 icon={Flame}
                 tone="text-warning"
-                href={`/transactions?categoryIds=${overspending.id}`}
+                href={`/transactions?categoryId=${overspending.id}`}
               >
                 <TileHeadline>{overspending.name}</TileHeadline>
                 <p className="mt-1 text-base text-muted-foreground">

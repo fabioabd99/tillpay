@@ -1,5 +1,7 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { apiError } from "@/server/api";
 import { removeExpiredDemos } from "@/server/demo-accounts";
 import {
   generateDueTransactions,
@@ -13,26 +15,14 @@ function authorised(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
 
-  const header = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
+  const header = Buffer.from(request.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${secret}`);
 
-  if (header.length !== expected.length) return false;
-
-  let mismatch = 0;
-  for (let index = 0; index < expected.length; index++) {
-    mismatch |= header.charCodeAt(index) ^ expected.charCodeAt(index);
-  }
-
-  return mismatch === 0;
+  return header.length === expected.length && timingSafeEqual(header, expected);
 }
 
 async function run(request: NextRequest) {
-  if (!authorised(request)) {
-    return NextResponse.json(
-      { error: { code: "unauthorized", message: "Not allowed." } },
-      { status: 401 },
-    );
-  }
+  if (!authorised(request)) return apiError("unauthorized", "Not allowed.");
 
   const until = new Date().toISOString().slice(0, 10);
   const userIds = await listUsersWithDueRules(until);

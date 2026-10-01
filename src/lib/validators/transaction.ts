@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-
 export const TRANSACTION_TYPES = ["income", "expense", "transfer"] as const;
 export const SORT_FIELDS = ["occurredOn", "amountCents", "description"] as const;
 
@@ -14,8 +13,8 @@ const isTruthy = (value: unknown) =>
 export const transactionFiltersSchema = z.object({
   from: z.iso.date().optional().catch(undefined),
   to: z.iso.date().optional().catch(undefined),
-  accountIds: z.array(z.uuid()).catch([]),
-  categoryIds: z.array(z.uuid()).catch([]),
+  accountId: z.uuid().optional().catch(undefined),
+  categoryId: z.uuid().optional().catch(undefined),
   // z.coerce.boolean() would turn "false" into true
   uncategorised: z.unknown().transform(isTruthy).catch(false),
   type: z.enum(TRANSACTION_TYPES).optional().catch(undefined),
@@ -34,21 +33,11 @@ export const transactionFiltersSchema = z.object({
 
 export type TransactionFilters = z.infer<typeof transactionFiltersSchema>;
 
-const toArray = (value: string | string[] | undefined) => {
-  if (value === undefined) return [];
-  const raw = Array.isArray(value) ? value : value.split(",");
-  return raw.map((item) => item.trim()).filter(Boolean);
-};
-
 // Each field has its own .catch, so one bad param doesn't reset the others.
 export function parseTransactionFilters(
   params: Record<string, string | string[] | undefined>,
 ): TransactionFilters {
-  return transactionFiltersSchema.parse({
-    ...params,
-    accountIds: toArray(params.accountIds),
-    categoryIds: toArray(params.categoryIds),
-  });
+  return transactionFiltersSchema.parse(params);
 }
 
 // Income or expense. The sign of amountCents must match the type (also a DB

@@ -3,13 +3,11 @@ import { cn } from "@/lib/utils";
 // Card surface used across the app: soft shadow in light mode, 1px ring in dark.
 export function Surface({
   as: Component = "div",
-  interactive = false,
   className,
   children,
   ...props
 }: {
-  as?: "div" | "section" | "article" | "li" | "ul";
-  interactive?: boolean;
+  as?: "div" | "section" | "article" | "li" | "ul" | "p";
   className?: string;
   children: React.ReactNode;
 } & React.HTMLAttributes<HTMLElement>) {
@@ -19,8 +17,6 @@ export function Surface({
         "rounded-3xl bg-card",
         "shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)]",
         "dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]",
-        interactive &&
-          "transition-colors duration-200 hover:bg-muted/40 dark:hover:bg-white/[0.07]",
         className,
       )}
       {...props}

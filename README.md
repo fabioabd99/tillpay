@@ -82,8 +82,7 @@ The spending breakdown is a regular `<table>`.
   `requireEmailVerification` can be turned on once there is one).
 - Recurring transactions are generated once a day (05:00 UTC), not when a page is opened.
 - CSV export only, no PDF.
-- Google sign-in is configured but untested. It is only enabled when `GOOGLE_CLIENT_ID` and
-  `GOOGLE_CLIENT_SECRET` are set.
+- Email and password sign-in only, no Google or other providers.
 
 ## Deploying
 

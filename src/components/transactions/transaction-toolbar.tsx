@@ -2,7 +2,6 @@
 
 import { ListFilter, Search, X } from "lucide-react";
 import {
-  parseAsArrayOf,
   parseAsBoolean,
   parseAsInteger,
   parseAsString,
@@ -11,18 +10,11 @@ import {
 } from "nuqs";
 import { useEffect, useState } from "react";
 
+import { OptionSelect } from "@/components/option-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Sheet,
   SheetClose,
@@ -47,8 +39,8 @@ const TYPE_LABELS: Record<string, string> = {
 const parsers = {
   q: parseAsString.withDefault(""),
   type: parseAsStringLiteral(TRANSACTION_TYPES),
-  accountIds: parseAsArrayOf(parseAsString).withDefault([]),
-  categoryIds: parseAsArrayOf(parseAsString).withDefault([]),
+  accountId: parseAsString,
+  categoryId: parseAsString,
   from: parseAsString.withDefault(""),
   to: parseAsString.withDefault(""),
   minCents: parseAsInteger,
@@ -61,6 +53,11 @@ type Option = { id: string; name: string };
 
 const nameOf = (options: Option[], id: string | null) =>
   options.find((option) => option.id === id)?.name;
+
+const withAll = (label: string, options: Option[]) => [
+  { value: ALL, label },
+  ...options.map((option) => ({ value: option.id, label: option.name })),
+];
 
 export function TransactionToolbar({
   accounts,
@@ -94,8 +91,7 @@ export function TransactionToolbar({
     return () => clearTimeout(timer);
   }, [search, filters.q, setFilters]);
 
-  const accountId = filters.accountIds[0] ?? null;
-  const categoryId = filters.categoryIds[0] ?? null;
+  const { accountId, categoryId } = filters;
 
   const chips = [
     filters.type && {
@@ -107,12 +103,12 @@ export function TransactionToolbar({
       accountId && {
         key: "account",
         label: nameOf(accounts, accountId) ?? "Account",
-        clear: { accountIds: null },
+        clear: { accountId: null },
       },
     categoryId && {
       key: "category",
       label: nameOf(categories, categoryId) ?? "Category",
-      clear: { categoryIds: null },
+      clear: { categoryId: null },
     },
     filters.from && {
       key: "from",
@@ -190,33 +186,21 @@ export function TransactionToolbar({
             <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-type">Show</Label>
-                <Select
+                <OptionSelect
+                  id="filter-type"
                   value={filters.type ?? ALL}
-                  onValueChange={(value) =>
+                  placeholder="Everything"
+                  options={[
+                    { value: ALL, label: "Everything" },
+                    ...TRANSACTION_TYPES.map((type) => ({ value: type, label: TYPE_LABELS[type] })),
+                  ]}
+                  onChange={(value) =>
                     void setFilters({
-                      type: TRANSACTION_TYPES.includes(
-                        value as (typeof TRANSACTION_TYPES)[number],
-                      )
-                        ? (value as (typeof TRANSACTION_TYPES)[number])
-                        : null,
+                      type: TRANSACTION_TYPES.find((type) => type === value) ?? null,
                       page: 1,
                     })
                   }
-                >
-                  <SelectTrigger id="filter-type" className="h-11">
-                    <SelectValue>
-                      {(value) => TYPE_LABELS[String(value)] ?? "Everything"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value={ALL}>Everything</SelectItem>
-                      <SelectItem value="income">Money in</SelectItem>
-                      <SelectItem value="expense">Money out</SelectItem>
-                      <SelectItem value="transfer">Transfers</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div
@@ -224,147 +208,82 @@ export function TransactionToolbar({
                 hidden={hideAccountFilter}
               >
                 <Label htmlFor="filter-account">Account</Label>
-                <Select
+                <OptionSelect
+                  id="filter-account"
                   value={accountId ?? ALL}
-                  onValueChange={(value) =>
-                    void setFilters({
-                      accountIds: !value || value === ALL ? [] : [value],
-                      page: 1,
-                    })
+                  placeholder="Any account"
+                  options={withAll("Any account", accounts)}
+                  onChange={(value) =>
+                    void setFilters({ accountId: value === ALL ? null : value || null, page: 1 })
                   }
-                >
-                  <SelectTrigger id="filter-account" className="h-11">
-                    <SelectValue>
-                      {(value) =>
-                        nameOf(accounts, String(value)) ?? "Any account"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value={ALL}>Any account</SelectItem>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-category">Category</Label>
-                <Select
+                <OptionSelect
+                  id="filter-category"
                   value={categoryId ?? ALL}
-                  onValueChange={(value) =>
-                    void setFilters({
-                      categoryIds: !value || value === ALL ? [] : [value],
-                      page: 1,
-                    })
+                  placeholder="Any category"
+                  options={withAll("Any category", categories)}
+                  onChange={(value) =>
+                    void setFilters({ categoryId: value === ALL ? null : value || null, page: 1 })
                   }
-                >
-                  <SelectTrigger id="filter-category" className="h-11">
-                    <SelectValue>
-                      {(value) =>
-                        nameOf(categories, String(value)) ?? "Any category"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value={ALL}>Any category</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-2 text-sm font-medium">Dates</legend>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="filter-from" className="text-muted-foreground">
-                      From
-                    </Label>
-                    <Input
-                      id="filter-from"
-                      type="date"
-                      className="h-11"
-                      value={filters.from}
-                      onChange={(event) =>
-                        void setFilters({
-                          from: event.target.value || null,
-                          page: 1,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="filter-to" className="text-muted-foreground">
-                      To
-                    </Label>
-                    <Input
-                      id="filter-to"
-                      type="date"
-                      className="h-11"
-                      value={filters.to}
-                      onChange={(event) =>
-                        void setFilters({
-                          to: event.target.value || null,
-                          page: 1,
-                        })
-                      }
-                    />
-                  </div>
+                  {(
+                    [
+                      ["from", "From"],
+                      ["to", "To"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <div key={key} className="flex flex-col gap-2">
+                      <Label htmlFor={`filter-${key}`} className="text-muted-foreground">
+                        {label}
+                      </Label>
+                      <Input
+                        id={`filter-${key}`}
+                        type="date"
+                        className="h-11"
+                        value={filters[key]}
+                        onChange={(event) =>
+                          void setFilters({ [key]: event.target.value || null, page: 1 })
+                        }
+                      />
+                    </div>
+                  ))}
                 </div>
               </fieldset>
 
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-2 text-sm font-medium">Amount</legend>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="filter-min" className="text-muted-foreground">
-                      At least
-                    </Label>
-                    <Input
-                      id="filter-min"
-                      inputMode="decimal"
-                      className="h-11"
-                      placeholder="0.00"
-                      defaultValue={
-                        filters.minCents === null
-                          ? ""
-                          : (filters.minCents / 100).toFixed(2)
-                      }
-                      onBlur={(event) =>
-                        setAmount("minCents", event.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="filter-max" className="text-muted-foreground">
-                      At most
-                    </Label>
-                    <Input
-                      id="filter-max"
-                      inputMode="decimal"
-                      className="h-11"
-                      placeholder="0.00"
-                      defaultValue={
-                        filters.maxCents === null
-                          ? ""
-                          : (filters.maxCents / 100).toFixed(2)
-                      }
-                      onBlur={(event) =>
-                        setAmount("maxCents", event.target.value)
-                      }
-                    />
-                  </div>
+                  {(
+                    [
+                      ["minCents", "min", "At least"],
+                      ["maxCents", "max", "At most"],
+                    ] as const
+                  ).map(([key, id, label]) => (
+                    <div key={key} className="flex flex-col gap-2">
+                      <Label htmlFor={`filter-${id}`} className="text-muted-foreground">
+                        {label}
+                      </Label>
+                      <Input
+                        id={`filter-${id}`}
+                        inputMode="decimal"
+                        className="h-11"
+                        placeholder="0.00"
+                        defaultValue={
+                          filters[key] === null ? "" : (filters[key] / 100).toFixed(2)
+                        }
+                        onBlur={(event) => setAmount(key, event.target.value)}
+                      />
+                    </div>
+                  ))}
                 </div>
               </fieldset>
             </div>
@@ -396,20 +315,7 @@ export function TransactionToolbar({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              void setFilters({
-                q: null,
-                type: null,
-                accountIds: null,
-                categoryIds: null,
-                from: null,
-                to: null,
-                minCents: null,
-                maxCents: null,
-                uncategorised: null,
-                page: 1,
-              })
-            }
+            onClick={() => void setFilters(null)}
           >
             Clear all
           </Button>

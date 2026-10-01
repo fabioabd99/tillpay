@@ -9,7 +9,6 @@ import {
   lte,
   or,
   sql,
-  type SQL,
 } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -20,48 +19,33 @@ import type {
   TransferInput,
 } from "@/lib/validators/transaction";
 
+// and() / or() skip undefined, so unset filters drop out.
 function buildConditions(userId: string, filters: TransactionFilters) {
-  const conditions: SQL[] = [eq(transactions.userId, userId)];
+  // escape LIKE wildcards typed by the user
+  const search = filters.q?.replace(/([%_\\])/g, "\\$1");
 
-  if (filters.from) conditions.push(gte(transactions.occurredOn, filters.from));
-  if (filters.to) conditions.push(lte(transactions.occurredOn, filters.to));
-  if (filters.type) conditions.push(eq(transactions.type, filters.type));
-
-  if (filters.accountIds.length > 0) {
-    conditions.push(inArray(transactions.accountId, filters.accountIds));
-  }
-
-  // categories + uncategorised = OR
-  const categoryClauses: SQL[] = [];
-  if (filters.categoryIds.length > 0) {
-    categoryClauses.push(inArray(transactions.categoryId, filters.categoryIds));
-  }
-  if (filters.uncategorised) {
-    categoryClauses.push(isNull(transactions.categoryId));
-  }
-  if (categoryClauses.length === 1) {
-    conditions.push(categoryClauses[0]);
-  } else if (categoryClauses.length > 1) {
-    conditions.push(or(...categoryClauses)!);
-  }
-
-  if (filters.q) {
-    // escape LIKE wildcards typed by the user
-    const escaped = filters.q.replace(/([%_\\])/g, "\\$1");
-    conditions.push(
-      sql`${transactions.description} ILIKE ${`%${escaped}%`} ESCAPE '\\'`,
-    );
-  }
-
-  // amount filters compare magnitude, so expenses (negative) match too
-  if (filters.minCents !== undefined) {
-    conditions.push(sql`abs(${transactions.amountCents}) >= ${filters.minCents}`);
-  }
-  if (filters.maxCents !== undefined) {
-    conditions.push(sql`abs(${transactions.amountCents}) <= ${filters.maxCents}`);
-  }
-
-  return and(...conditions)!;
+  return and(
+    eq(transactions.userId, userId),
+    filters.from ? gte(transactions.occurredOn, filters.from) : undefined,
+    filters.to ? lte(transactions.occurredOn, filters.to) : undefined,
+    filters.type ? eq(transactions.type, filters.type) : undefined,
+    filters.accountId ? eq(transactions.accountId, filters.accountId) : undefined,
+    // a category + uncategorised = either
+    or(
+      filters.categoryId ? eq(transactions.categoryId, filters.categoryId) : undefined,
+      filters.uncategorised ? isNull(transactions.categoryId) : undefined,
+    ),
+    search
+      ? sql`${transactions.description} ILIKE ${`%${search}%`} ESCAPE '\\'`
+      : undefined,
+    // amount filters compare magnitude, so expenses (negative) match too
+    filters.minCents !== undefined
+      ? sql`abs(${transactions.amountCents}) >= ${filters.minCents}`
+      : undefined,
+    filters.maxCents !== undefined
+      ? sql`abs(${transactions.amountCents}) <= ${filters.maxCents}`
+      : undefined,
+  )!;
 }
 
 const SORT_COLUMNS = {
@@ -136,15 +120,7 @@ export async function createTransaction(
 
   const [row] = await db
     .insert(transactions)
-    .values({
-      userId,
-      accountId: input.accountId,
-      categoryId: input.categoryId,
-      type: input.type,
-      amountCents: input.amountCents,
-      occurredOn: input.occurredOn,
-      description: input.description,
-    })
+    .values({ userId, ...input })
     .returning();
 
   return row;
@@ -168,7 +144,7 @@ export async function getTransaction(userId: string, id: string) {
   return row ?? null;
 }
 
-async function ownsTargets(
+export async function ownsTargets(
   userId: string,
   accountId: string,
   categoryId: string | null,
@@ -210,14 +186,7 @@ export async function updateTransaction(
 
   const [row] = await db
     .update(transactions)
-    .set({
-      accountId: input.accountId,
-      categoryId: input.categoryId,
-      type: input.type,
-      amountCents: input.amountCents,
-      occurredOn: input.occurredOn,
-      description: input.description,
-    })
+    .set(input)
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .returning();
 
@@ -229,20 +198,17 @@ export async function deleteTransaction(userId: string, id: string) {
   const existing = await getTransaction(userId, id);
   if (!existing) return null;
 
-  const removed = existing.transferGroupId
-    ? await db
-        .delete(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            eq(transactions.transferGroupId, existing.transferGroupId),
-          ),
-        )
-        .returning({ id: transactions.id })
-    : await db
-        .delete(transactions)
-        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
-        .returning({ id: transactions.id });
+  const removed = await db
+    .delete(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        existing.transferGroupId
+          ? eq(transactions.transferGroupId, existing.transferGroupId)
+          : eq(transactions.id, id),
+      ),
+    )
+    .returning({ id: transactions.id });
 
   return { deleted: removed.length, wasTransfer: !!existing.transferGroupId };
 }
@@ -272,47 +238,32 @@ export async function createTransfer(userId: string, input: TransferInput) {
   }
 
   const transferGroupId = crypto.randomUUID();
+  const legs = [
+    [input.fromAccountId, -input.amountCents],
+    [input.toAccountId, input.amountCents],
+  ] as const;
 
   return db.transaction(async (tx) =>
     tx
       .insert(transactions)
-      .values([
-        {
+      .values(
+        legs.map(([accountId, amountCents]) => ({
           userId,
-          accountId: input.fromAccountId,
-          type: "transfer",
-          amountCents: -input.amountCents,
+          accountId,
+          type: "transfer" as const,
+          amountCents,
           occurredOn: input.occurredOn,
           description: input.description,
           transferGroupId,
-        },
-        {
-          userId,
-          accountId: input.toAccountId,
-          type: "transfer",
-          amountCents: input.amountCents,
-          occurredOn: input.occurredOn,
-          description: input.description,
-          transferGroupId,
-        },
-      ])
+        })),
+      )
       .returning(),
   );
 }
 
-export type AccountBalance = {
-  id: string;
-  name: string;
-  kind: "checking" | "savings" | "cash" | "card";
-  currency: string;
-  balanceCents: number;
-};
-
 // Grouped by account so the opening balance is only counted once.
-export async function listAccountBalances(
-  userId: string,
-): Promise<AccountBalance[]> {
-  const rows = await db
+export function listAccountBalances(userId: string) {
+  return db
     .select({
       id: accounts.id,
       name: accounts.name,
@@ -325,17 +276,11 @@ export async function listAccountBalances(
     .from(accounts)
     .leftJoin(transactions, eq(transactions.accountId, accounts.id))
     .where(and(eq(accounts.userId, userId), isNull(accounts.archivedAt)))
-    .groupBy(
-      accounts.id,
-      accounts.name,
-      accounts.kind,
-      accounts.currency,
-      accounts.initialBalanceCents,
-    )
+    .groupBy(accounts.id)
     .orderBy(asc(accounts.name));
-
-  return rows;
 }
+
+export type AccountBalance = Awaited<ReturnType<typeof listAccountBalances>>[number];
 
 // End-of-day balance for each day in the range (sparkline).
 export async function getBalanceSeries(

@@ -5,8 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 
 import { Button } from "@/components/ui/button";
-
-const iso = (date: Date) => format(date, "yyyy-MM-dd");
+import { isoDate, parseDate } from "@/lib/dates";
 
 export function MonthNav({
   month,
@@ -24,13 +23,13 @@ export function MonthNav({
     { shallow: false, history: "replace" },
   );
 
-  const current = new Date(`${month}T12:00:00`);
+  const current = parseDate(month);
 
   function go(offset: number) {
     const target = addMonths(current, offset);
     void setRange({
-      from: iso(startOfMonth(target)),
-      to: iso(endOfMonth(target)),
+      from: isoDate(startOfMonth(target)),
+      to: isoDate(endOfMonth(target)),
       page: 1,
     });
   }
@@ -50,7 +49,7 @@ export function MonthNav({
     );
   }
 
-  const isThisMonth = month === iso(startOfMonth(new Date()));
+  const isThisMonth = month === isoDate(startOfMonth(new Date()));
 
   return (
     <div className="flex items-center justify-between gap-2">

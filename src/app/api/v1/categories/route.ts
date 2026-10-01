@@ -14,7 +14,7 @@ export async function GET() {
   if (!user) return response;
 
   return NextResponse.json({
-    data: await listCategories(user.id, { includeHidden: true }),
+    data: await listCategories(user.id),
   });
 }
 

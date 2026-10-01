@@ -10,7 +10,7 @@ export async function GET() {
   if (!user) return response;
 
   return NextResponse.json({
-    data: await listAccounts(user.id, { includeHidden: true }),
+    data: await listAccounts(user.id),
   });
 }
 

@@ -3,32 +3,10 @@ import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, categories, recurringRules, transactions } from "@/db/schema";
 import type { RecurringRuleInput } from "@/lib/validators/recurring";
+import { ownsTargets } from "@/server/queries/transactions";
 import { computeOccurrences, nextRunAfter } from "@/server/recurring";
 
-export type RecurringRuleRow = {
-  id: string;
-  description: string;
-  type: "income" | "expense" | "transfer";
-  amountCents: number;
-  frequency: "daily" | "weekly" | "monthly" | "yearly";
-  interval: number;
-  dayOfMonth: number | null;
-  weekday: number | null;
-  startsOn: string;
-  endsOn: string | null;
-  nextRunOn: string;
-  active: boolean;
-  isSalary: boolean;
-  accountId: string;
-  accountName: string;
-  categoryId: string | null;
-  categoryName: string | null;
-  categoryColor: string | null;
-};
-
-export async function listRecurringRules(
-  userId: string,
-): Promise<RecurringRuleRow[]> {
+export function listRecurringRules(userId: string) {
   return db
     .select({
       id: recurringRules.id,
@@ -56,6 +34,8 @@ export async function listRecurringRules(
     .where(eq(recurringRules.userId, userId))
     .orderBy(asc(recurringRules.active), asc(recurringRules.nextRunOn));
 }
+
+export type RecurringRuleRow = Awaited<ReturnType<typeof listRecurringRules>>[number];
 
 // Creates the transactions for every due rule up to `until`.
 // Safe to run more than once thanks to the unique index on
@@ -124,30 +104,6 @@ export async function listUsersWithDueRules(until: string) {
     );
 
   return rows.map((row) => row.userId);
-}
-
-async function ownsTargets(
-  userId: string,
-  accountId: string,
-  categoryId: string | null,
-) {
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)));
-
-  if (!account) return false;
-
-  if (categoryId) {
-    const [category] = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)));
-
-    if (!category) return false;
-  }
-
-  return true;
 }
 
 export async function createRecurringRule(

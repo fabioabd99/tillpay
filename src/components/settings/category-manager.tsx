@@ -11,6 +11,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
 import { CATEGORY_COLORS, CATEGORY_KINDS } from "@/lib/validators/category";
 import type { CategoryListRow } from "@/server/queries/categories";
@@ -51,11 +53,7 @@ export function CategoryManager({
   const [adding, setAdding] = useState(false);
 
   async function toggleHidden(category: CategoryListRow) {
-    await fetch(`/api/v1/categories/${category.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hidden: !category.archivedAt }),
-    });
+    await sendJson(`/api/v1/categories/${category.id}`, "PUT", { hidden: !category.archivedAt });
     router.refresh();
   }
 
@@ -93,7 +91,7 @@ export function CategoryManager({
               {group.label}
             </h3>
 
-            <ul className="overflow-hidden rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]">
+            <Surface as="ul" className="overflow-hidden">
               {rows.map((category) => (
                 <li
                   key={category.id}
@@ -153,7 +151,7 @@ export function CategoryManager({
                   </div>
                 </li>
               ))}
-            </ul>
+            </Surface>
           </div>
         );
       })}
@@ -211,13 +209,10 @@ function CategoryDialog({
   async function submit(values: FormValues) {
     setFormError(null);
 
-    const response = await fetch(
+    const response = await sendJson(
       category ? `/api/v1/categories/${category.id}` : "/api/v1/categories",
-      {
-        method: category ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      },
+      category ? "PATCH" : "POST",
+      values,
     );
 
     if (!response.ok) {

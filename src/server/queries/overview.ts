@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accounts, recurringRules, transactions } from "@/db/schema";
@@ -16,10 +16,7 @@ export async function getSpendableBalance(userId: string) {
       and(
         eq(accounts.userId, userId),
         isNull(accounts.archivedAt),
-        sql`${accounts.kind} = ANY(ARRAY[${sql.join(
-          SPENDABLE_KINDS.map((kind) => sql`${kind}`),
-          sql`, `,
-        )}]::account_kind[])`,
+        inArray(accounts.kind, SPENDABLE_KINDS),
       ),
     );
 
@@ -33,10 +30,7 @@ export async function getSpendableBalance(userId: string) {
       and(
         eq(transactions.userId, userId),
         isNull(accounts.archivedAt),
-        sql`${accounts.kind} = ANY(ARRAY[${sql.join(
-          SPENDABLE_KINDS.map((kind) => sql`${kind}`),
-          sql`, `,
-        )}]::account_kind[])`,
+        inArray(accounts.kind, SPENDABLE_KINDS),
       ),
     );
 
@@ -62,16 +56,9 @@ export async function getNextPayday(userId: string) {
   return row?.on ?? null;
 }
 
-export type UpcomingBill = {
-  id: string;
-  description: string;
-  amountCents: number;
-  dueOn: string;
-};
-
 // Recurring expenses due between today and `until`.
-export async function getUpcomingBills(userId: string, until: string) {
-  const rows = await db
+export function getUpcomingBills(userId: string, until: string) {
+  return db
     .select({
       id: recurringRules.id,
       description: recurringRules.description,
@@ -89,8 +76,6 @@ export async function getUpcomingBills(userId: string, until: string) {
       ),
     )
     .orderBy(recurringRules.nextRunOn);
-
-  return rows satisfies UpcomingBill[];
 }
 
 export type CategoryPace = {

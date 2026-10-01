@@ -49,7 +49,7 @@ export function WalletStack({ accounts }: { accounts: AccountBalance[] }) {
                 style={{ zIndex: index }}
               >
                 <Link
-                  href={`/transactions?accountIds=${account.id}`}
+                  href={`/transactions?accountId=${account.id}`}
                   className={cn(
                     "relative isolate flex aspect-[1.586] w-full flex-col overflow-hidden rounded-[1.25rem] p-5 text-white",
                     "shadow-[0_-1px_0_rgb(255_255_255/0.12)_inset,0_10px_30px_-12px_rgb(0_0_0/0.45)]",

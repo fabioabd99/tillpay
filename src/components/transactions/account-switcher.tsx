@@ -1,12 +1,7 @@
 "use client";
 
 import { Check, ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
-import {
-  parseAsArrayOf,
-  parseAsInteger,
-  parseAsString,
-  useQueryStates,
-} from "nuqs";
+import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
 import { ACCOUNT_FACE } from "@/components/account-face";
@@ -15,8 +10,6 @@ import { orderAccounts } from "@/lib/account-order";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { AccountBalance } from "@/server/queries/transactions";
-
-const KIND = ACCOUNT_FACE;
 
 export function AccountSwitcher({
   accounts,
@@ -27,7 +20,7 @@ export function AccountSwitcher({
 }) {
   const [, setFilters] = useQueryStates(
     {
-      accountIds: parseAsArrayOf(parseAsString),
+      accountId: parseAsString,
       page: parseAsInteger.withDefault(1),
     },
     { shallow: false, history: "replace" },
@@ -76,47 +69,6 @@ export function AccountSwitcher({
     });
   }, [selectedId]);
 
-  // mouse drag to scroll (touch already scrolls natively)
-  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
-
-  function startDrag(event: React.PointerEvent<HTMLDivElement>) {
-    const row = rail.current;
-    if (!row || event.pointerType !== "mouse" || event.button !== 0) return;
-
-    drag.current = { x: event.clientX, left: row.scrollLeft, moved: false };
-    // snap is restored on release
-    row.style.scrollSnapType = "none";
-
-    const move = (moveEvent: PointerEvent) => {
-      if (!drag.current) return;
-      const dx = moveEvent.clientX - drag.current.x;
-      if (Math.abs(dx) > 5) drag.current.moved = true;
-      row.scrollLeft = drag.current.left - dx;
-    };
-
-    const end = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      row.style.scrollSnapType = "";
-
-      // don't select a card at the end of a drag
-      if (drag.current?.moved) {
-        row.addEventListener(
-          "click",
-          (clickEvent) => {
-            clickEvent.preventDefault();
-            clickEvent.stopPropagation();
-          },
-          { capture: true, once: true },
-        );
-      }
-      drag.current = null;
-    };
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-  }
-
   function nudge(direction: 1 | -1) {
     const row = rail.current;
     if (!row) return;
@@ -164,12 +116,9 @@ export function AccountSwitcher({
         ref={rail}
         role="tablist"
         aria-label="Accounts"
-        onPointerDown={startDrag}
-        onDragStart={(event) => event.preventDefault()}
         className={cn(
           // bottom padding so the shadow isn't clipped
           "flex snap-x snap-mandatory gap-4 overflow-x-auto pt-3 pb-8",
-          "select-none md:cursor-grab md:active:cursor-grabbing",
           hidden.before &&
             hidden.after &&
             "[mask-image:linear-gradient(to_right,transparent,black_2.5rem,black_calc(100%-2.5rem),transparent)]",
@@ -188,15 +137,13 @@ export function AccountSwitcher({
           <WalletCard
             key={account.id}
             selected={selectedId === account.id}
-            face={KIND[account.kind].face}
-            icon={KIND[account.kind].icon}
-            kind={KIND[account.kind].label}
+            face={ACCOUNT_FACE[account.kind].face}
+            icon={ACCOUNT_FACE[account.kind].icon}
+            kind={ACCOUNT_FACE[account.kind].label}
             name={account.name}
             cents={account.balanceCents}
             currency={account.currency}
-            onSelect={() =>
-              void setFilters({ accountIds: [account.id], page: 1 })
-            }
+            onSelect={() => void setFilters({ accountId: account.id, page: 1 })}
           />
         ))}
       </div>

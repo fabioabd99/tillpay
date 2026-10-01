@@ -3,13 +3,10 @@ import { describe, expect, test } from "vitest";
 import { parseTransactionFilters } from "./transaction";
 
 const UUID_A = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
-const UUID_B = "9c858901-8a57-4791-81fe-4c455b099bc9";
 
 describe("parseTransactionFilters", () => {
   test("applies defaults when nothing is given", () => {
     expect(parseTransactionFilters({})).toMatchObject({
-      accountIds: [],
-      categoryIds: [],
       uncategorised: false,
       sort: "occurredOn",
       dir: "desc",
@@ -29,19 +26,17 @@ describe("parseTransactionFilters", () => {
     expect(parseTransactionFilters({ pageSize: "50" }).pageSize).toBe(50);
   });
 
-  test("reads comma-separated ids", () => {
-    expect(
-      parseTransactionFilters({ accountIds: `${UUID_A},${UUID_B}` }).accountIds,
-    ).toEqual([UUID_A, UUID_B]);
+  test("reads an account id", () => {
+    expect(parseTransactionFilters({ accountId: UUID_A }).accountId).toBe(UUID_A);
   });
 
   test("drops ids that are not uuids without dropping other filters", () => {
     const filters = parseTransactionFilters({
-      accountIds: "not-a-uuid",
+      accountId: "not-a-uuid",
       type: "expense",
     });
 
-    expect(filters.accountIds).toEqual([]);
+    expect(filters.accountId).toBeUndefined();
     expect(filters.type).toBe("expense");
   });
 

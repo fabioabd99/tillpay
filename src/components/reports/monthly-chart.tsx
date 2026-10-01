@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { parseDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import type { MonthlyPoint } from "@/server/queries/reports";
 
@@ -24,7 +25,7 @@ const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short" });
 export function MonthlyChart({ points }: { points: MonthlyPoint[] }) {
   const data = points.map((point) => ({
     month: point.month,
-    label: monthLabel.format(new Date(`${point.month}T12:00:00`)),
+    label: monthLabel.format(parseDate(point.month)),
     income: point.incomeCents,
     expense: -point.expenseCents,
   }));

@@ -8,6 +8,8 @@ import {
   TransactionDialog,
   type EditableTransaction,
 } from "@/components/transactions/transaction-dialog";
+import { Surface } from "@/components/ui/surface";
+import { parseDate } from "@/lib/dates";
 import type { TransactionRow } from "@/server/queries/transactions";
 
 const weekday = new Intl.DateTimeFormat("en-GB", {
@@ -27,11 +29,9 @@ const dayAndMonth = new Intl.DateTimeFormat("en-GB", {
   month: "long",
 });
 
-const toDate = (value: string) => new Date(`${value}T12:00:00`);
-
 function dayHeading(value: string, today: string, yesterday: string) {
-  const date = toDate(value);
-  const isThisYear = date.getFullYear() === toDate(today).getFullYear();
+  const date = parseDate(value);
+  const isThisYear = date.getFullYear() === parseDate(today).getFullYear();
 
   if (value === today) return `Today, ${dayAndMonth.format(date)}`;
   if (value === yesterday) return `Yesterday, ${dayAndMonth.format(date)}`;
@@ -85,9 +85,10 @@ export function TransactionList({
                 />
               </header>
 
-              <ul
+              <Surface
+                as="ul"
                 data-stagger
-                className="overflow-hidden rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]"
+                className="overflow-hidden"
               >
                 {day.rows.map((row) => (
                   <li
@@ -137,7 +138,7 @@ export function TransactionList({
                     </button>
                   </li>
                 ))}
-              </ul>
+              </Surface>
             </section>
           );
         })}

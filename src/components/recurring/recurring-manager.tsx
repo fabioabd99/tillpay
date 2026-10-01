@@ -7,6 +7,8 @@ import { useState } from "react";
 
 import { Amount } from "@/components/amount";
 import { CategoryIcon } from "@/components/category-icon";
+import { MoneyInput } from "@/components/money-input";
+import { OptionSelect } from "@/components/option-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,17 +27,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { parseDate } from "@/lib/dates";
 import { parseAmountToCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
 import { FREQUENCIES, FREQUENCY_LABELS } from "@/lib/validators/recurring";
 import type { RecurringRuleRow } from "@/server/queries/recurring";
@@ -57,11 +53,7 @@ export function RecurringManager({
   const [adding, setAdding] = useState(false);
 
   async function update(rule: RecurringRuleRow, body: { active: boolean } | { isSalary: true }) {
-    await fetch(`/api/v1/recurring-rules/${rule.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    await sendJson(`/api/v1/recurring-rules/${rule.id}`, "PUT", body);
     router.refresh();
   }
 
@@ -130,7 +122,7 @@ export function RecurringManager({
                 <Amount cents={rule.amountCents} className="text-base" />
                 <p className="text-sm text-muted-foreground">
                   {rule.active
-                    ? `next ${format(new Date(`${rule.nextRunOn}T12:00:00`), "d MMM")}`
+                    ? `next ${format(parseDate(rule.nextRunOn), "d MMM")}`
                     : "not scheduled"}
                 </p>
               </div>
@@ -235,30 +227,23 @@ function RuleDialog({
     }
 
     setSaving(true);
-    const response = await fetch("/api/v1/recurring-rules", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accountId,
-        categoryId: categoryId === "none" ? null : categoryId,
-        description: description.trim(),
-        type: direction === "in" ? "income" : "expense",
-        amountCents: direction === "in" ? magnitude : -magnitude,
-        frequency,
-        interval: 1,
-        // taken from the start date
-        dayOfMonth:
-          frequency === "monthly" || frequency === "yearly"
-            ? Number(startsOn.slice(8, 10))
-            : null,
-        weekday:
-          frequency === "weekly"
-            ? new Date(`${startsOn}T12:00:00`).getDay()
-            : null,
-        startsOn,
-        endsOn: null,
-        isSalary: direction === "in" && isSalary,
-      }),
+    const response = await sendJson("/api/v1/recurring-rules", "POST", {
+      accountId,
+      categoryId: categoryId === "none" ? null : categoryId,
+      description: description.trim(),
+      type: direction === "in" ? "income" : "expense",
+      amountCents: direction === "in" ? magnitude : -magnitude,
+      frequency,
+      interval: 1,
+      // taken from the start date
+      dayOfMonth:
+        frequency === "monthly" || frequency === "yearly"
+          ? Number(startsOn.slice(8, 10))
+          : null,
+      weekday: frequency === "weekly" ? parseDate(startsOn).getDay() : null,
+      startsOn,
+      endsOn: null,
+      isSalary: direction === "in" && isSalary,
     });
     setSaving(false);
 
@@ -320,111 +305,61 @@ function RuleDialog({
 
           <Field>
             <FieldLabel htmlFor="rule-amount">Amount</FieldLabel>
-            <div className="relative">
-              <span
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              >
-                €
-              </span>
-              <Input
-                id="rule-amount"
-                inputMode="decimal"
-                autoComplete="off"
-                className="h-11 pl-7 tabular-nums"
-                placeholder="0.00"
-                value={amount}
-                onChange={(event) => {
-                  setAmount(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
+            <MoneyInput
+              id="rule-amount"
+              placeholder="0.00"
+              value={amount}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError(null);
+              }}
+            />
             {error ? <FieldDescription>{error}</FieldDescription> : null}
           </Field>
 
           <Field>
             <FieldLabel htmlFor="rule-frequency">How often?</FieldLabel>
-            <Select
+            <OptionSelect
+              id="rule-frequency"
               value={frequency}
-              onValueChange={(value) => {
-                const next = String(value ?? "");
-                if (FREQUENCIES.includes(next as typeof frequency)) {
-                  setFrequency(next as typeof frequency);
-                }
+              placeholder="Choose"
+              options={FREQUENCIES.map((option) => ({
+                value: option,
+                label: FREQUENCY_LABELS[option],
+              }))}
+              onChange={(value) => {
+                const next = FREQUENCIES.find((option) => option === value);
+                if (next) setFrequency(next);
               }}
-            >
-              <SelectTrigger id="rule-frequency" className="h-11">
-                <SelectValue>
-                  {(value) =>
-                    FREQUENCY_LABELS[String(value) as typeof frequency] ??
-                    "Choose"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {FREQUENCIES.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {FREQUENCY_LABELS[option]}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            />
           </Field>
 
           <Field>
             <FieldLabel htmlFor="rule-category">Category</FieldLabel>
-            <Select
+            <OptionSelect
+              id="rule-category"
               value={categoryId}
-              onValueChange={(value) => setCategoryId(String(value ?? "none"))}
-            >
-              <SelectTrigger id="rule-category" className="h-11">
-                <SelectValue>
-                  {(value) =>
-                    visibleCategories.find((item) => item.id === value)?.name ??
-                    "No category"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="none">No category</SelectItem>
-                  {visibleCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              placeholder="No category"
+              options={[
+                { value: "none", label: "No category" },
+                ...visibleCategories.map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+              ]}
+              onChange={(value) => setCategoryId(value || "none")}
+            />
           </Field>
 
           <Field>
             <FieldLabel htmlFor="rule-account">Account</FieldLabel>
-            <Select
+            <OptionSelect
+              id="rule-account"
               value={accountId}
-              onValueChange={(value) => setAccountId(String(value ?? ""))}
-            >
-              <SelectTrigger id="rule-account" className="h-11">
-                <SelectValue>
-                  {(value) =>
-                    accounts.find((item) => item.id === value)?.name ??
-                    "Choose an account"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              placeholder="Choose an account"
+              options={accounts.map((account) => ({ value: account.id, label: account.name }))}
+              onChange={setAccountId}
+            />
           </Field>
 
           <Field>

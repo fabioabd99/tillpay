@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -143,19 +143,6 @@ export const appRateLimits = pgTable("app_rate_limits", {
   count: integer("count").notNull(),
   windowStartedAt: bigint("window_started_at", { mode: "number" }).notNull(),
 });
-
-export const usersRelations = relations(users, ({ many }) => ({
-  sessions: many(sessions),
-  authAccounts: many(authAccounts),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, { fields: [sessions.userId], references: [users.id] }),
-}));
-
-export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
-  user: one(users, { fields: [authAccounts.userId], references: [users.id] }),
-}));
 
 export const accounts = pgTable(
   "accounts",

@@ -4,6 +4,8 @@ import { CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { MoneyInput } from "@/components/money-input";
+import { OptionSelect } from "@/components/option-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,15 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { parseAmountToCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { nextRunAfter } from "@/server/recurring";
 
 // Shown on Home while no salary is set: asks for the pay day and creates the
@@ -64,20 +59,16 @@ export function SalaryPrompt({
     const rule = { frequency: "monthly", interval: 1, dayOfMonth: dayNumber, weekday: null } as const;
     // a monthly rule never ends, so there is always a next run
     const startsOn = nextRunAfter({ ...rule, startsOn: today, endsOn: null, nextRunOn: today }, today)!;
-    const response = await fetch("/api/v1/recurring-rules", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accountId,
-        categoryId: salaryCategoryId,
-        description: "Salary",
-        type: "income",
-        amountCents: cents,
-        ...rule,
-        startsOn,
-        endsOn: null,
-        isSalary: true,
-      }),
+    const response = await sendJson("/api/v1/recurring-rules", "POST", {
+      accountId,
+      categoryId: salaryCategoryId,
+      description: "Salary",
+      type: "income",
+      amountCents: cents,
+      ...rule,
+      startsOn,
+      endsOn: null,
+      isSalary: true,
     });
     setSaving(false);
 
@@ -131,27 +122,16 @@ export function SalaryPrompt({
 
             <Field data-invalid={error?.field === "amount"}>
               <FieldLabel htmlFor="salary-amount">How much comes in</FieldLabel>
-              <div className="relative">
-                <span
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                >
-                  €
-                </span>
-                <Input
-                  id="salary-amount"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  className="h-11 pl-7 tabular-nums"
-                  placeholder="0.00"
-                  value={amount}
-                  aria-invalid={error?.field === "amount"}
-                  onChange={(event) => {
-                    setAmount(event.target.value);
-                    setError(null);
-                  }}
-                />
-              </div>
+              <MoneyInput
+                id="salary-amount"
+                placeholder="0.00"
+                value={amount}
+                aria-invalid={error?.field === "amount"}
+                onChange={(event) => {
+                  setAmount(event.target.value);
+                  setError(null);
+                }}
+              />
               {error?.field === "amount" ? (
                 <FieldDescription>{error.message}</FieldDescription>
               ) : null}
@@ -160,22 +140,13 @@ export function SalaryPrompt({
             {accounts.length > 1 ? (
               <Field>
                 <FieldLabel htmlFor="salary-account">Paid into</FieldLabel>
-                <Select value={accountId} onValueChange={(value) => setAccountId(String(value ?? ""))}>
-                  <SelectTrigger id="salary-account" className="h-11">
-                    <SelectValue>
-                      {(value) => accounts.find((item) => item.id === value)?.name ?? "Choose an account"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <OptionSelect
+                  id="salary-account"
+                  value={accountId}
+                  placeholder="Choose an account"
+                  options={accounts.map((account) => ({ value: account.id, label: account.name }))}
+                  onChange={setAccountId}
+                />
               </Field>
             ) : null}
 

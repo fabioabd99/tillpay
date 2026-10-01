@@ -1,20 +1,21 @@
 import { CategoryIcon } from "@/components/category-icon";
+import { Surface } from "@/components/ui/surface";
 import { formatCents } from "@/lib/money";
 import type { CategoryTotal } from "@/server/queries/reports";
 
 export function CategoryBreakdown({ rows }: { rows: CategoryTotal[] }) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06] p-6 text-center text-muted-foreground">
+      <Surface as="p" className="p-6 text-center text-muted-foreground">
         Nothing spent in this period.
-      </p>
+      </Surface>
     );
   }
 
   const largest = rows[0].cents || 1;
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06]">
+    <Surface className="overflow-hidden">
       <table className="w-full">
         <caption className="sr-only">
           Spending by category, largest first
@@ -70,6 +71,6 @@ export function CategoryBreakdown({ rows }: { rows: CategoryTotal[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </Surface>
   );
 }

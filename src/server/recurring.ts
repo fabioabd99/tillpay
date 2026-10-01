@@ -1,4 +1,6 @@
-import { addDays, format, getDaysInMonth } from "date-fns";
+import { addDays, getDaysInMonth } from "date-fns";
+
+import { isoDate, parseDate } from "@/lib/dates";
 
 export type OccurrenceRule = {
   frequency: "daily" | "weekly" | "monthly" | "yearly";
@@ -9,10 +11,6 @@ export type OccurrenceRule = {
   endsOn: string | null;
   nextRunOn: string;
 };
-
-// noon, so timezone offsets can't move the date
-const parse = (value: string) => new Date(`${value}T12:00:00`);
-const iso = (date: Date) => format(date, "yyyy-MM-dd");
 
 // safety cap in case of a bad row
 const MAX_OCCURRENCES = 5000;
@@ -29,9 +27,9 @@ export function computeOccurrences(
     throw new Error(`Recurring rule has a non-positive interval: ${rule.interval}`);
   }
 
-  const start = parse(rule.nextRunOn);
-  const end = parse(until);
-  const ends = rule.endsOn ? parse(rule.endsOn) : null;
+  const start = parseDate(rule.nextRunOn);
+  const end = parseDate(until);
+  const ends = rule.endsOn ? parseDate(rule.endsOn) : null;
 
   if (ends && ends < start) return [];
 
@@ -46,7 +44,7 @@ export function computeOccurrences(
     for (let index = 0; index < MAX_OCCURRENCES; index++) {
       const date = addDays(start, index * step);
       if (date > limit) break;
-      occurrences.push(iso(date));
+      occurrences.push(isoDate(date));
     }
 
     return occurrences;
@@ -67,7 +65,7 @@ export function computeOccurrences(
     const date = new Date(year, month, day, 12);
 
     if (date > limit) break;
-    if (date >= start) occurrences.push(iso(date));
+    if (date >= start) occurrences.push(isoDate(date));
   }
 
   return occurrences;
@@ -78,10 +76,10 @@ export function nextRunAfter(
   rule: OccurrenceRule,
   from: string,
 ): string | null {
-  const horizon = parse(from);
+  const horizon = parseDate(from);
   horizon.setFullYear(horizon.getFullYear() + 1);
 
-  const upcoming = computeOccurrences(rule, iso(horizon)).filter(
+  const upcoming = computeOccurrences(rule, isoDate(horizon)).filter(
     (date) => date > from,
   );
 

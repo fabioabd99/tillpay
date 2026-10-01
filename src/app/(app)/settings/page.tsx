@@ -12,8 +12,8 @@ export default async function SettingsPage() {
   const user = await requireUser();
 
   const [accounts, categories] = await Promise.all([
-    listAccounts(user.id, { includeHidden: true }),
-    listCategories(user.id, { includeHidden: true }),
+    listAccounts(user.id),
+    listCategories(user.id),
   ]);
 
   return (

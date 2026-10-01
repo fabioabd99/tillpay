@@ -1,4 +1,4 @@
-import { addDays, format, startOfMonth, subMonths } from "date-fns";
+import { addDays, startOfMonth, subMonths } from "date-fns";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -9,6 +9,7 @@ import {
   recurringRules,
   transactions,
 } from "@/db/schema";
+import { isoDate } from "@/lib/dates";
 import { computeOccurrences, nextRunAfter } from "@/server/recurring";
 
 const MONTHS = 12;
@@ -128,8 +129,7 @@ export async function seedDemoData(userId: string) {
 
   // clamp to today, the current month is only partly over
   const today = new Date();
-  const day = (date: Date) => format(date > today ? today : date, "yyyy-MM-dd");
-  const iso = (date: Date) => format(date, "yyyy-MM-dd");
+  const day = (date: Date) => isoDate(date > today ? today : date);
 
   const accountRows = await db
     .insert(accounts)
@@ -166,8 +166,8 @@ export async function seedDemoData(userId: string) {
   const rows: NewTransaction[] = [];
 
   const firstMonth = startOfMonth(subMonths(new Date(), MONTHS - 1));
-  const startsOn = iso(firstMonth);
-  const todayIso = iso(today);
+  const startsOn = isoDate(firstMonth);
+  const todayIso = isoDate(today);
 
   const ruleRows = await db
     .insert(recurringRules)

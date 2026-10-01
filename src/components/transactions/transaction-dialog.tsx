@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { CategoryIcon } from "@/components/category-icon";
+import { OptionSelect } from "@/components/option-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,25 +29,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { isoDate, parseDate } from "@/lib/dates";
 import { formatCents, parseAmountToCents } from "@/lib/money";
+import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
 
 type Option = { id: string; name: string; kind?: string; color?: string | null };
 
-// toISOString() is UTC and can return the wrong day
-const localDate = (date: Date) => format(date, "yyyy-MM-dd");
 const formatDay = (value: string) =>
-  format(new Date(`${value}T12:00:00`), "d MMM");
+  format(parseDate(value), "d MMM");
 
 export type EditableTransaction = {
   id: string;
@@ -139,7 +132,7 @@ export function TransactionDialog({
           categoryId: NONE,
           accountId: accounts[0]?.id ?? "",
           toAccountId: accounts[1]?.id ?? "",
-          occurredOn: localDate(new Date()),
+          occurredOn: isoDate(new Date()),
         },
   });
 
@@ -167,8 +160,8 @@ export function TransactionDialog({
   const dateField = form.register("occurredOn");
   const dateInput = useRef<HTMLInputElement | null>(null);
   const categoryId = form.watch("categoryId");
-  const today = localDate(new Date());
-  const yesterday = localDate(subDays(new Date(), 1));
+  const today = isoDate(new Date());
+  const yesterday = isoDate(subDays(new Date(), 1));
   const otherDay = !!occurredOn && occurredOn !== today && occurredOn !== yesterday;
 
   const typedCents = parseAmountToCents(form.watch("amount") ?? "");
@@ -188,68 +181,42 @@ export function TransactionDialog({
     setFormError(null);
 
     const magnitude = parseAmountToCents(values.amount)!;
+    const description = values.description || null;
 
-    if (values.direction === "move") {
-      const response = await fetch("/api/v1/transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fromAccountId: values.accountId,
-          toAccountId: values.toAccountId,
-          // positive, the API creates the negative leg
-          amountCents: magnitude,
-          occurredOn: values.occurredOn,
-          description: values.description || null,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        setFormError(
-          payload?.error?.message ?? "That did not save. Try again.",
-        );
-        return;
-      }
-
-      setOpen(false);
-      form.reset({ ...values, amount: "", description: "" });
-      router.refresh();
-      return;
-    }
-
-    const body = {
-      accountId: values.accountId,
-      categoryId: values.categoryId === NONE ? null : values.categoryId,
-      type: values.direction === "in" ? "income" : "expense",
-      amountCents: values.direction === "in" ? magnitude : -magnitude,
-      occurredOn: values.occurredOn,
-      description: values.description || null,
-    };
-
-    const response = await fetch(
-      isEditing ? `/api/v1/transactions/${transaction.id}` : "/api/v1/transactions",
-      {
-        method: isEditing ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
+    const response =
+      values.direction === "move"
+        ? await sendJson("/api/v1/transfers", "POST", {
+            fromAccountId: values.accountId,
+            toAccountId: values.toAccountId,
+            // positive, the API creates the negative leg
+            amountCents: magnitude,
+            occurredOn: values.occurredOn,
+            description,
+          })
+        : await sendJson(
+            isEditing ? `/api/v1/transactions/${transaction.id}` : "/api/v1/transactions",
+            isEditing ? "PATCH" : "POST",
+            {
+              accountId: values.accountId,
+              categoryId: values.categoryId === NONE ? null : values.categoryId,
+              type: values.direction === "in" ? "income" : "expense",
+              amountCents: values.direction === "in" ? magnitude : -magnitude,
+              occurredOn: values.occurredOn,
+              description,
+            },
+          );
 
     if (!response.ok) {
-      setFormError("That did not save. Check the details and try again.");
+      const payload = await response.json().catch(() => null);
+      setFormError(
+        payload?.error?.message ?? "That did not save. Check the details and try again.",
+      );
       return;
     }
 
     setOpen(false);
     if (!isEditing) {
-      form.reset({
-        direction: values.direction,
-        amount: "",
-        description: "",
-        categoryId: NONE,
-        accountId: values.accountId,
-        occurredOn: values.occurredOn,
-      });
+      form.reset({ ...values, amount: "", description: "", categoryId: NONE });
     }
     router.refresh();
   }
@@ -419,80 +386,77 @@ export function TransactionDialog({
                 </p>
               </div>
 
-              <div>
-                {direction === "move" ? (
-                  <div className="divide-y rounded-2xl bg-muted/60">
-                    <Row icon={ArrowUpRight} label="From" htmlFor="accountId">
-                      <AccountSelect
-                        id="accountId"
-                        accounts={accounts}
-                        value={form.watch("accountId")}
-                        onChange={(value) => form.setValue("accountId", value)}
-                      />
-                    </Row>
-                    <Row icon={ArrowDownLeft} label="To" htmlFor="toAccountId">
-                      <AccountSelect
-                        id="toAccountId"
-                        accounts={accounts}
-                        value={form.watch("toAccountId")}
-                        onChange={(value) => form.setValue("toAccountId", value)}
-                      />
-                    </Row>
-                    {form.formState.errors.toAccountId ? (
-                      <p className="px-4 py-2 text-base text-negative" role="alert">
-                        {form.formState.errors.toAccountId.message}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <fieldset className="flex flex-col">
-                    <legend className="mb-2 text-base font-medium">
-                      Category
-                    </legend>
-                    <div className="grid grid-cols-4 gap-1 sm:grid-cols-5">
-                      {visibleCategories.map((category) => {
-                        const chosen = categoryId === category.id;
-                        return (
-                          <button
-                            key={category.id}
-                            type="button"
-                            aria-pressed={chosen}
-                            onClick={() =>
-                              form.setValue(
-                                "categoryId",
-                                chosen ? NONE : category.id,
-                              )
-                            }
+              {direction === "move" ? (
+                <div className="divide-y rounded-2xl bg-muted/60">
+                  <Row icon={ArrowUpRight} label="From" htmlFor="accountId">
+                    <AccountSelect
+                      id="accountId"
+                      accounts={accounts}
+                      value={form.watch("accountId")}
+                      onChange={(value) => form.setValue("accountId", value)}
+                    />
+                  </Row>
+                  <Row icon={ArrowDownLeft} label="To" htmlFor="toAccountId">
+                    <AccountSelect
+                      id="toAccountId"
+                      accounts={accounts}
+                      value={form.watch("toAccountId")}
+                      onChange={(value) => form.setValue("toAccountId", value)}
+                    />
+                  </Row>
+                  {form.formState.errors.toAccountId ? (
+                    <p className="px-4 py-2 text-base text-negative" role="alert">
+                      {form.formState.errors.toAccountId.message}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <fieldset className="flex flex-col">
+                  <legend className="mb-2 text-base font-medium">
+                    Category
+                  </legend>
+                  <div className="grid grid-cols-4 gap-1 sm:grid-cols-5">
+                    {visibleCategories.map((category) => {
+                      const chosen = categoryId === category.id;
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          aria-pressed={chosen}
+                          onClick={() =>
+                            form.setValue(
+                              "categoryId",
+                              chosen ? NONE : category.id,
+                            )
+                          }
+                          className={cn(
+                            "flex h-[5.5rem] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-colors duration-150",
+                            chosen ? "bg-muted" : "hover:bg-muted/60",
+                          )}
+                        >
+                          <CategoryIcon
+                            category={category.name}
+                            color={category.color ?? null}
+                            solid={chosen}
+                            className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                          />
+                          <span
                             className={cn(
-                              "flex h-[5.5rem] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-colors duration-150",
-                              chosen ? "bg-muted" : "hover:bg-muted/60",
+                              "w-full truncate text-sm",
+                              chosen
+                                ? "font-semibold"
+                                : "text-muted-foreground",
                             )}
                           >
-                            <CategoryIcon
-                              category={category.name}
-                              color={category.color ?? null}
-                              solid={chosen}
-                              className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                            />
-                            <span
-                              className={cn(
-                                "w-full truncate text-sm",
-                                chosen
-                                  ? "font-semibold"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {category.name}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                )}
-              </div>
+                            {category.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
 
-              <div>
               <div className="divide-y rounded-2xl bg-muted/60">
                 <Row icon={CalendarDays} label="Date" htmlFor="occurredOn">
                   <div className="flex items-center gap-1.5">
@@ -555,7 +519,6 @@ export function TransactionDialog({
                     {...form.register("description")}
                   />
                 </Row>
-              </div>
               </div>
             </div>
 
@@ -650,30 +613,17 @@ function AccountSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(next) => onChange(String(next ?? ""))}>
-      <SelectTrigger
-        id={id}
-        className="h-12 w-auto max-w-full gap-1 border-0 bg-transparent! px-0 text-base shadow-none focus-visible:ring-0 dark:bg-transparent!"
-      >
-        <SelectValue>
-          {(selected) =>
-            accounts.find((item) => item.id === selected)?.name ??
-            "Choose an account"
-          }
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {accounts.map((account) => (
-            <SelectItem key={account.id} value={account.id}>
-              {account.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+    <OptionSelect
+      id={id}
+      value={value}
+      onChange={onChange}
+      placeholder="Choose an account"
+      options={accounts.map((account) => ({ value: account.id, label: account.name }))}
+      className="h-12 w-auto max-w-full gap-1 border-0 bg-transparent! px-0 text-base shadow-none focus-visible:ring-0 dark:bg-transparent!"
+    />
   );
 }
+
 // Delete asks for confirmation inline instead of opening another dialog.
 function DeleteControls({
   confirming,

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
@@ -6,21 +6,8 @@ import type { AccountInput } from "@/lib/validators/account";
 
 // Accounts are archived, never deleted (the FK cascades to transactions).
 
-export type AccountListRow = {
-  id: string;
-  name: string;
-  kind: "checking" | "savings" | "cash" | "card";
-  currency: string;
-  initialBalanceCents: number;
-  balanceCents: number;
-  transactionCount: number;
-  archivedAt: Date | null;
-};
-
-export async function listAccounts(
-  userId: string,
-  { includeHidden = false } = {},
-): Promise<AccountListRow[]> {
+// Hidden accounts included, listed last.
+export function listAccounts(userId: string) {
   return db
     .select({
       id: accounts.id,
@@ -36,14 +23,12 @@ export async function listAccounts(
     })
     .from(accounts)
     .leftJoin(transactions, eq(transactions.accountId, accounts.id))
-    .where(
-      includeHidden
-        ? eq(accounts.userId, userId)
-        : and(eq(accounts.userId, userId), isNull(accounts.archivedAt)),
-    )
+    .where(eq(accounts.userId, userId))
     .groupBy(accounts.id)
-    .orderBy(asc(accounts.archivedAt), asc(accounts.name));
+    .orderBy(sql`${accounts.archivedAt} IS NOT NULL`, asc(accounts.name));
 }
+
+export type AccountListRow = Awaited<ReturnType<typeof listAccounts>>[number];
 
 export async function createAccount(userId: string, input: AccountInput) {
   const [row] = await db

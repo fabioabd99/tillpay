@@ -24,16 +24,6 @@ export const auth = betterAuth({
       "/sign-up/email": { window: 60, max: 3 },
     },
   },
-  // optional, only enabled when the env vars are set
-  socialProviders:
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? {
-          google: {
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          },
-        }
-      : undefined,
   user: {
     modelName: "users",
     additionalFields: {

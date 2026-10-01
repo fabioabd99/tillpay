@@ -5,7 +5,8 @@ import { Amount } from "@/components/amount";
 import { CategoryBreakdown } from "@/components/reports/category-breakdown";
 import { MonthlyChart } from "@/components/reports/monthly-chart";
 import { buttonVariants } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/surface";
+import { PageHeader, Surface } from "@/components/ui/surface";
+import { isoDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { requireUser } from "@/server/auth-context";
 import {
@@ -14,8 +15,6 @@ import {
 } from "@/server/queries/reports";
 
 export const metadata = { title: "Reports · Tillpay" };
-
-const iso = (date: Date) => format(date, "yyyy-MM-dd");
 
 const RANGES = [
   { months: 3, label: "3 months" },
@@ -40,7 +39,7 @@ export default async function ReportsPage({
 
   const [trend, byCategory] = await Promise.all([
     getMonthlyTrend(user.id, months),
-    getSpendingByCategory(user.id, iso(periodStart), iso(periodEnd)),
+    getSpendingByCategory(user.id, isoDate(periodStart), isoDate(periodEnd)),
   ]);
 
   const totals = trend.reduce(
@@ -101,9 +100,9 @@ export default async function ReportsPage({
           </p>
         </div>
 
-        <div className="rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06] p-4">
+        <Surface className="p-4">
           <MonthlyChart points={trend} />
-        </div>
+        </Surface>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -132,12 +131,12 @@ function Stat({
   detail?: string;
 }) {
   return (
-    <div className="rounded-3xl bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:bg-white/[0.04] dark:shadow-none dark:ring-1 dark:ring-white/[0.06] p-4">
+    <Surface className="p-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-lg">{value}</dd>
       {detail ? (
         <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
       ) : null}
-    </div>
+    </Surface>
   );
 }

@@ -1,4 +1,4 @@
-import { endOfMonth, format, startOfMonth } from "date-fns";
+import { endOfMonth, startOfMonth } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, Download, Search } from "lucide-react";
 
 import { Amount } from "@/components/amount";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/empty";
 import { Surface } from "@/components/ui/surface";
 import { orderAccounts } from "@/lib/account-order";
+import { isoDate, parseDate } from "@/lib/dates";
 import { parseTransactionFilters } from "@/lib/validators/transaction";
 import { requireUser } from "@/server/auth-context";
 import {
@@ -29,8 +30,6 @@ import {
 } from "@/server/queries/transactions";
 
 export const metadata = { title: "Accounts · Tillpay" };
-
-const iso = (date: Date) => format(date, "yyyy-MM-dd");
 
 export default async function TransactionsPage({
   searchParams,
@@ -47,17 +46,17 @@ export default async function TransactionsPage({
   const filters = defaultedToThisMonth
     ? {
         ...raw,
-        from: iso(thisMonthStart),
-        to: iso(endOfMonth(thisMonthStart)),
+        from: isoDate(thisMonthStart),
+        to: isoDate(endOfMonth(thisMonthStart)),
       }
     : raw;
 
-  const monthAnchor = filters.from ?? iso(thisMonthStart);
-  const anchorDate = new Date(`${monthAnchor}T12:00:00`);
+  const monthAnchor = filters.from ?? isoDate(thisMonthStart);
+  const anchorDate = parseDate(monthAnchor);
   const isCustomRange =
     !defaultedToThisMonth &&
-    (filters.from !== iso(startOfMonth(anchorDate)) ||
-      filters.to !== iso(endOfMonth(anchorDate)));
+    (filters.from !== isoDate(startOfMonth(anchorDate)) ||
+      filters.to !== isoDate(endOfMonth(anchorDate)));
 
   const [accountBalances, categories] = await Promise.all([
     listAccountBalances(user.id),
@@ -67,7 +66,7 @@ export default async function TransactionsPage({
   const hasFilters =
     !!filters.q ||
     !!filters.type ||
-    filters.categoryIds.length > 0 ||
+    !!filters.categoryId ||
     filters.minCents !== undefined ||
     filters.maxCents !== undefined ||
     filters.uncategorised;
@@ -76,36 +75,32 @@ export default async function TransactionsPage({
   // Home) without an account, then search all of them.
   const fallback = orderAccounts(accountBalances)[0];
   const selectedId =
-    filters.accountIds[0] ?? (hasFilters ? null : (fallback?.id ?? null));
-  const viewFilters = selectedId
-    ? { ...filters, accountIds: [selectedId] }
-    : filters;
+    filters.accountId ?? (hasFilters ? null : (fallback?.id ?? null));
+  const viewFilters = selectedId ? { ...filters, accountId: selectedId } : filters;
 
   const [result, series] = await Promise.all([
     listTransactions(user.id, viewFilters),
     getBalanceSeries(
       user.id,
       selectedId,
-      filters.from ?? iso(thisMonthStart),
-      filters.to ?? iso(endOfMonth(thisMonthStart)),
+      filters.from ?? isoDate(thisMonthStart),
+      filters.to ?? isoDate(endOfMonth(thisMonthStart)),
     ),
   ]);
 
   const selected = accountBalances.find((account) => account.id === selectedId);
 
   const now = new Date();
-  const today = iso(now);
-  const yesterday = iso(new Date(now.getTime() - 86_400_000));
+  const today = isoDate(now);
+  const yesterday = isoDate(new Date(now.getTime() - 86_400_000));
 
   const exportParams = new URLSearchParams({
     ...(filters.from ? { from: filters.from } : {}),
     ...(filters.to ? { to: filters.to } : {}),
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.type ? { type: filters.type } : {}),
-    ...(selectedId ? { accountIds: selectedId } : {}),
-    ...(filters.categoryIds.length
-      ? { categoryIds: filters.categoryIds.join(",") }
-      : {}),
+    ...(selectedId ? { accountId: selectedId } : {}),
+    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
   }).toString();
 
   return (

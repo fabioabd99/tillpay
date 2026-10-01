@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { categories, transactions } from "@/db/schema";
@@ -6,20 +6,8 @@ import type { CategoryInput } from "@/lib/validators/category";
 
 // Categories are archived, not deleted, so past transactions keep them.
 
-export type CategoryListRow = {
-  id: string;
-  name: string;
-  kind: "income" | "expense";
-  color: string | null;
-  transactionCount: number;
-  totalCents: number;
-  archivedAt: Date | null;
-};
-
-export async function listCategories(
-  userId: string,
-  { includeHidden = false } = {},
-): Promise<CategoryListRow[]> {
+// Hidden categories included.
+export function listCategories(userId: string) {
   return db
     .select({
       id: categories.id,
@@ -32,48 +20,28 @@ export async function listCategories(
     })
     .from(categories)
     .leftJoin(transactions, eq(transactions.categoryId, categories.id))
-    .where(
-      includeHidden
-        ? eq(categories.userId, userId)
-        : and(eq(categories.userId, userId), isNull(categories.archivedAt)),
-    )
+    .where(eq(categories.userId, userId))
     .groupBy(categories.id)
     .orderBy(asc(categories.archivedAt), asc(categories.kind), asc(categories.name));
 }
 
+export type CategoryListRow = Awaited<ReturnType<typeof listCategories>>[number];
+
 export const CATEGORY_NAME_TAKEN = "category_name_taken" as const;
 
-// unique_violation. Drizzle wraps the driver error, so walk the `cause` chain.
-function isUniqueViolation(error: unknown) {
-  let current: unknown = error;
+// unique_violation, wrapped by Drizzle in `cause`.
+const isUniqueViolation = (error: unknown) =>
+  (error as { cause?: { code?: string } })?.cause?.code === "23505";
 
-  for (let depth = 0; depth < 5 && current; depth++) {
-    if (
-      typeof current === "object" &&
-      current !== null &&
-      (current as { code?: string }).code === "23505"
-    ) {
-      return true;
-    }
-
-    current = (current as { cause?: unknown }).cause;
-  }
-
-  return false;
-}
-
+// The unique index is (user_id, lower(name), kind), so a clash inserts nothing.
 export async function createCategory(userId: string, input: CategoryInput) {
-  try {
-    const [row] = await db
-      .insert(categories)
-      .values({ userId, ...input })
-      .returning();
+  const rows = await db
+    .insert(categories)
+    .values({ userId, ...input })
+    .onConflictDoNothing()
+    .returning();
 
-    return row;
-  } catch (error) {
-    if (isUniqueViolation(error)) return CATEGORY_NAME_TAKEN;
-    throw error;
-  }
+  return rows.length > 0 ? rows[0] : CATEGORY_NAME_TAKEN;
 }
 
 export async function updateCategory(
