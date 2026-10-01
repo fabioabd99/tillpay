@@ -95,15 +95,7 @@ export function TransactionList({
                   <button
                     type="button"
                     onClick={() =>
-                      setEditing({
-                        id: row.id,
-                        type: row.type,
-                        amountCents: row.amountCents,
-                        occurredOn: row.occurredOn,
-                        description: row.description,
-                        accountId: row.accountId,
-                        categoryId: row.categoryId,
-                      })
+                      setEditing(row)
                     }
                     className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >

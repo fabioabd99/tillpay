@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // CSP with a per-request nonce, and a redirect to /sign-in for private pages
 // when there's no session cookie. The redirect is only a UX shortcut, the real
 // auth check is requireUser().
-const PRIVATE = ["/budgets", "/recurring", "/reports", "/settings", "/transactions"];
+export const PRIVATE = ["/budgets", "/recurring", "/reports", "/settings", "/transactions"];
 
 function isPrivate(path: string) {
   return (

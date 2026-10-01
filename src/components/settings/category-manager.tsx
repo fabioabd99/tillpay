@@ -5,7 +5,6 @@ import { Eye, EyeOff, Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { CategoryIcon } from "@/components/category-icon";
 import { TextField } from "@/components/text-field";
@@ -27,16 +26,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatCents } from "@/lib/money";
 import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
-import { CATEGORY_COLORS, CATEGORY_KINDS } from "@/lib/validators/category";
+import {
+  CATEGORY_COLORS,
+  categoryInputSchema,
+  type CategoryInput,
+} from "@/lib/validators/category";
 import type { CategoryListRow } from "@/server/queries/categories";
-
-const formSchema = z.object({
-  name: z.string().trim().min(1, "Give the category a name").max(60),
-  kind: z.enum(CATEGORY_KINDS),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 export function CategoryManager({
   categories,
@@ -187,8 +182,8 @@ function CategoryDialog({
 }) {
   const [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm({
+    resolver: zodResolver(categoryInputSchema),
     defaultValues: category
       ? {
           name: category.name,
@@ -201,7 +196,7 @@ function CategoryDialog({
   const kind = form.watch("kind");
   const color = form.watch("color");
 
-  async function submit(values: FormValues) {
+  async function submit(values: CategoryInput) {
     setFormError(null);
 
     const response = await sendJson(

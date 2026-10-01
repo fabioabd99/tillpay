@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ACCOUNT_FACE } from "@/components/account-face";
 import { orderAccounts } from "@/lib/account-order";
 import { formatCents } from "@/lib/money";
+import { ACCOUNT_KIND_LABELS } from "@/lib/validators/account";
 import { cn } from "@/lib/utils";
 import type { AccountBalance } from "@/server/queries/transactions";
 
@@ -71,7 +72,7 @@ export function WalletStack({ accounts }: { accounts: AccountBalance[] }) {
                             {account.name}
                           </span>
                           <span className="text-sm font-medium text-white/90">
-                            {face.label}
+                            {ACCOUNT_KIND_LABELS[account.kind]}
                           </span>
                         </span>
                         <Icon className="size-7 shrink-0 text-white/90" aria-hidden />

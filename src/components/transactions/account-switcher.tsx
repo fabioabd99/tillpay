@@ -8,6 +8,7 @@ import { ACCOUNT_FACE } from "@/components/account-face";
 import { Button } from "@/components/ui/button";
 import { orderAccounts } from "@/lib/account-order";
 import { formatCents } from "@/lib/money";
+import { ACCOUNT_KIND_LABELS } from "@/lib/validators/account";
 import { cn } from "@/lib/utils";
 import type { AccountBalance } from "@/server/queries/transactions";
 
@@ -139,7 +140,7 @@ export function AccountSwitcher({
             selected={selectedId === account.id}
             face={ACCOUNT_FACE[account.kind].face}
             icon={ACCOUNT_FACE[account.kind].icon}
-            kind={ACCOUNT_FACE[account.kind].label}
+            kind={ACCOUNT_KIND_LABELS[account.kind]}
             name={account.name}
             cents={account.balanceCents}
             currency={account.currency}

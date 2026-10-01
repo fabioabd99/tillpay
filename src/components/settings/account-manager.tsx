@@ -29,22 +29,18 @@ import { cn } from "@/lib/utils";
 import {
   ACCOUNT_KINDS,
   ACCOUNT_KIND_LABELS,
+  accountInputSchema,
 } from "@/lib/validators/account";
 import type { AccountListRow } from "@/server/queries/accounts";
 
-const formSchema = z.object({
-  name: z.string().trim().min(1, "Give the account a name").max(60),
-  kind: z.enum(ACCOUNT_KINDS),
-  currency: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z]{3}$/, "Use a three-letter code, like EUR"),
+// the shared schema, with the opening balance typed as text
+const formSchema = accountInputSchema.omit({ initialBalanceCents: true }).extend({
   openingBalance: z
     .string()
     .refine((value) => parseAmountToCents(value) !== null, "Enter an amount"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.output<typeof formSchema>;
 
 export function AccountManager({ accounts }: { accounts: AccountListRow[] }) {
   const router = useRouter();
@@ -171,7 +167,7 @@ function AccountDialog({
 }) {
   const [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: account
       ? {
@@ -180,7 +176,7 @@ function AccountDialog({
           currency: account.currency,
           openingBalance: (account.initialBalanceCents / 100).toFixed(2),
         }
-      : { name: "", kind: "checking", currency: "EUR", openingBalance: "0.00" },
+      : { name: "", kind: "checking" as const, currency: "EUR", openingBalance: "0.00" },
   });
 
   async function submit(values: FormValues) {
@@ -192,7 +188,7 @@ function AccountDialog({
       {
         name: values.name,
         kind: values.kind,
-        currency: values.currency.toUpperCase(),
+        currency: values.currency,
         initialBalanceCents: parseAmountToCents(values.openingBalance)!,
       },
     );

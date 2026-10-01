@@ -35,21 +35,17 @@ import { isoDate, parseDate } from "@/lib/dates";
 import { formatCents, parseAmountToCents } from "@/lib/money";
 import { sendJson } from "@/lib/send-json";
 import { cn } from "@/lib/utils";
+import type { TransactionRow } from "@/server/queries/transactions";
 
 type Option = { id: string; name: string; kind?: string; color?: string | null };
 
 const formatDay = (value: string) =>
   format(parseDate(value), "d MMM");
 
-export type EditableTransaction = {
-  id: string;
-  type: "income" | "expense" | "transfer";
-  amountCents: number;
-  occurredOn: string;
-  description: string | null;
-  accountId: string;
-  categoryId: string | null;
-};
+export type EditableTransaction = Pick<
+  TransactionRow,
+  "id" | "type" | "amountCents" | "occurredOn" | "description" | "accountId" | "categoryId"
+>;
 
 const NONE = "none";
 
